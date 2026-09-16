@@ -261,6 +261,7 @@ td.acao{white-space:nowrap}
       <thead>
         <tr class="filtros">
           <th style="width:34px"></th>
+          <th><input data-fl="BASE" placeholder="mm/aaaa"></th>
           <th><input data-fl="DATA" placeholder="Filtrar"></th>
           <th><input data-fl="NOME" placeholder="Filtrar"></th>
           <th><input data-fl="TELEFONE" placeholder="Filtrar"></th>
@@ -270,7 +271,7 @@ td.acao{white-space:nowrap}
         </tr>
         <tr class="nomes">
           <th style="width:34px"><input type="checkbox" id="leadSelTodos" onchange="selTodosLeads(this.checked)" title="Selecionar todos os visíveis"></th>
-          <th>Data</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Info</th><th>Ações</th>
+          <th>Base</th><th title="Data em que o lead foi enviado ao estagiário">Data envio</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Info</th><th>Ações</th>
         </tr>
       </thead>
       <tbody id="corpoLead"></tbody>
@@ -295,7 +296,8 @@ td.acao{white-space:nowrap}
           </div>
           <button type="button" class="btn btn-mini btn-borda" style="margin-top:4px;align-self:flex-start" onclick="addTelLead()">+ telefone</button>
         </div>
-        <div class="campo"><label>Data</label><input type="date" id="ld_DATA"></div>
+        <div class="campo"><label>Base (mês/ano)</label><input type="month" id="ld_BASE"></div>
+        <div class="campo"><label>Data do envio</label><input type="date" id="ld_DATA" title="Preenchida automaticamente quando o lead é enviado ao estagiário"></div>
         <div class="campo c2"><label>Empresa</label><input id="ld_EMPRESA"></div>
         <div class="campo c2"><label>Info</label><input id="ld_ATENDENTE" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO (opcional)"></div>
         <div class="campo c2"><label>Enviar para o estagiário</label><input id="ld_ESTAG" list="dlEstagiarios" placeholder="Nome do estagiário (opcional — tem prioridade sobre a Info)"></div>
@@ -346,7 +348,8 @@ td.acao{white-space:nowrap}
         Os campos preenchidos abaixo serão aplicados a <b>todos os leads selecionados</b>. Campos em branco não são alterados.
       </div>
       <div class="grade" style="grid-template-columns:1fr 1fr">
-        <div class="campo"><label>Data</label><input type="date" id="lote_DATA"></div>
+        <div class="campo"><label>Base (mês/ano)</label><input type="month" id="lote_BASE"></div>
+        <div class="campo"><label>Data do envio</label><input type="date" id="lote_DATA"></div>
         <div class="campo"><label>Info</label><input id="lote_INFO" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO"></div>
         <div class="campo c2"><label>Empresa</label><input id="lote_EMPRESA"></div>
         <div class="campo c2"><label>Enviar para o estagiário</label><input id="lote_ESTAG" list="dlEstagiarios" placeholder="Nome do estagiário (opcional — tem prioridade sobre a Info)"></div>
@@ -1494,14 +1497,20 @@ function lerArquivoBase64(file){
 // comprime fotos grandes antes do upload (mais rápido e economiza Drive)
 function comprimirImagem(file){
   return new Promise(res=>{
-    if(!file.type.startsWith('image/')||file.size<1200000){res(file);return}
+    // comprime qualquer foto acima de 350 KB (resolução suficiente para leitura de documentos)
+    if(!file.type.startsWith('image/')||file.size<350000){res(file);return}
     const img=new Image();
     img.onload=()=>{
-      const max=1600, esc=Math.min(1,max/Math.max(img.width,img.height));
+      const max=1500, esc=Math.min(1,max/Math.max(img.width,img.height));
       const cv=document.createElement('canvas');
       cv.width=img.width*esc; cv.height=img.height*esc;
-      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
-      cv.toBlob(b=>res(new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'})),'image/jpeg',0.82);
+      const ctx=cv.getContext('2d');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,cv.width,cv.height); // PNGs com transparência viram fundo branco
+      ctx.drawImage(img,0,0,cv.width,cv.height);
+      cv.toBlob(b=>{
+        // usa a versão comprimida só se realmente ficou menor
+        res(b && b.size<file.size ? new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}) : file);
+      },'image/jpeg',0.75);
     };
     img.onerror=()=>res(file);
     img.src=URL.createObjectURL(file);
@@ -1532,8 +1541,8 @@ async function anexar(coluna,input,prefixo){
     }));
   }catch(e){loading(false);toast('Falha ao preparar os arquivos');return}
 
-  // divide em partes só se o total for muito grande (limite do Apps Script)
-  const LIMITE = 18*1024*1024;
+  // divide em partes menores e envia TODAS AO MESMO TEMPO (paralelo)
+  const LIMITE = 5*1024*1024;
   const partes=[]; let atual=[], soma=0;
   prontos.forEach(p=>{
     if(atual.length && soma+p.base64.length>LIMITE){partes.push(atual);atual=[];soma=0}
@@ -1541,26 +1550,28 @@ async function anexar(coluna,input,prefixo){
   });
   if(atual.length)partes.push(atual);
 
-  let falhas=[], enviados=0;
-  for(let i=0;i<partes.length;i++){
-    loading(true,'Enviando para o Drive'+(partes.length>1?' ('+(i+1)+'/'+partes.length+')':'')+'…');
+  let falhas=[], enviados=0, melhorLista=null;
+  loading(true,'Enviando '+prontos.length+' arquivo(s) para o Drive…');
+  await Promise.all(partes.map(async parte=>{
     try{
-      const r = await apiPost({action:'uploadDocsLote',id:fichaAtual.ID,nome:fichaAtual.NOME,coluna,arquivos:partes[i],por:usuario?usuario.nome:''});
+      const r = await apiPost({action:'uploadDocsLote',id:fichaAtual.ID,nome:fichaAtual.NOME,coluna,arquivos:parte,por:usuario?usuario.nome:''});
       if(r.ok){
-        fichaAtual[coluna]=JSON.stringify(r.lista);
-        enviados += partes[i].length - (r.falhas||[]).length;
+        // guarda a lista mais completa entre as respostas paralelas
+        if(!melhorLista || r.lista.length>melhorLista.length) melhorLista=r.lista;
+        enviados += parte.length - (r.falhas||[]).length;
         falhas = falhas.concat(r.falhas||[]);
       }else if(String(r.erro||'').includes('Ação inválida')){
         // implantação antiga do Code.gs: envia um a um pelo caminho anterior
-        for(const p of partes[i]){
+        for(const p of parte){
           const r1 = await apiPost({action:'uploadDoc',id:fichaAtual.ID,nome:fichaAtual.NOME,coluna,arquivoNome:p.arquivoNome,mimeType:p.mimeType,base64:p.base64,por:usuario?usuario.nome:''});
-          if(r1.ok){fichaAtual[coluna]=JSON.stringify(r1.lista);enviados++}
+          if(r1.ok){if(!melhorLista||r1.lista.length>melhorLista.length)melhorLista=r1.lista;enviados++}
           else falhas.push(p.arquivoNome);
         }
         toast('Atualize o Code.gs (Nova versão) para o envio rápido de documentos');
-      }else{falhas=falhas.concat(partes[i].map(p=>p.arquivoNome));toast('Erro no envio: '+r.erro)}
-    }catch(e){falhas=falhas.concat(partes[i].map(p=>p.arquivoNome))}
-  }
+      }else{falhas=falhas.concat(parte.map(p=>p.arquivoNome));toast('Erro no envio: '+r.erro)}
+    }catch(e){falhas=falhas.concat(parte.map(p=>p.arquivoNome))}
+  }));
+  if(melhorLista) fichaAtual[coluna]=JSON.stringify(melhorLista);
   loading(false);
   renderDocs(); renderizar();
   toast(falhas.length?('Enviados '+enviados+' · falharam: '+falhas.join(', ')):(enviados+' documento(s) salvos no Google Drive'));
@@ -1948,11 +1959,12 @@ function renderLeads(){
     else if(atF && normaliza(r.ATENDENTE)!==normaliza(atF)) return false;
     return Object.entries(fl).every(([c,v])=>normaliza(c==='DATA'?dataBR(r.DATA):r[c]).includes(v));
   });
-  visiveis.sort((a,b)=>(chaveData(a.DATA)+' '+chaveCriado(a.CRIADO_EM)).localeCompare(chaveData(b.DATA)+' '+chaveCriado(b.CRIADO_EM)));
+  visiveis.sort((a,b)=>((dataISO(a.DATA)||'0000')+' '+chaveCriado(a.CRIADO_EM)).localeCompare((dataISO(b.DATA)||'0000')+' '+chaveCriado(b.CRIADO_EM)));
 
   $('corpoLead').innerHTML = visiveis.map(r=>{
     return `<tr class="${r.ATENDENTE?'st-verde':''}">
       <td style="text-align:center"><input type="checkbox" ${leadSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleLeadSel('${r.ID}',this.checked)" ${estag?'disabled':''}></td>
+      <td>${esc(r.BASE||'')}</td>
       <td>${esc(dataBR(r.DATA))}</td>
       <td><b>${esc(r.NOME)}</b></td>
       <td>${esc(r.TELEFONE)}</td>
@@ -2024,35 +2036,48 @@ async function atribuirLeadsSel(){
 function abrirEditarLote(){
   if(!leadSel.size){toast('Marque ao menos um lead na lista');return}
   $('loteTitulo').textContent = 'Editar '+leadSel.size+' selecionado(s)';
-  ['lote_DATA','lote_INFO','lote_EMPRESA','lote_ESTAG'].forEach(id=>$(id).value='');
+  ['lote_BASE','lote_DATA','lote_INFO','lote_EMPRESA','lote_ESTAG'].forEach(id=>$(id).value='');
   $('mLeadLote').classList.add('aberto');
 }
 
 async function salvarEditarLote(){
   const campos = {};
-  const d = $('lote_DATA').value, e = $('lote_EMPRESA').value.trim(), i = $('lote_INFO').value.trim(), es = $('lote_ESTAG').value.trim();
+  const bs = $('lote_BASE').value, d = $('lote_DATA').value, e = $('lote_EMPRESA').value.trim(), i = $('lote_INFO').value.trim(), es = $('lote_ESTAG').value.trim();
+  if(bs) campos.BASE = bs.slice(5,7)+'/'+bs.slice(0,4);
   if(d) campos.DATA = dataBR(d);
   if(e) campos.EMPRESA = e;
+  let nomeEstag = null;
   if(es){
-    const nomeEstag = estagValido(es);
+    nomeEstag = estagValido(es);
     if(!nomeEstag){toast('Estagiário não encontrado: cadastre-o em Usuários com o tipo ESTAGIÁRIO');return}
-    campos.ATENDENTE = nomeEstag; // leads já enviados não são reenviados (envio único)
   }else if(i){
     const info = infoValida(i);
     if(!info){toast('A Info aceita apenas ROBO ou ESTAGIÁRIO');return}
     campos.ATENDENTE = info;
   }
-  if(!Object.keys(campos).length){toast('Preencha ao menos um campo para alterar');return}
-  if(!confirm('Aplicar as alterações a '+leadSel.size+' lead(s)?'))return;
-  loading(true,'Alterando '+leadSel.size+' lead(s)…');
-  const resp = await apiPost({action:'editarLeadsLote',ids:[...leadSel],campos});
+  if(!Object.keys(campos).length && !nomeEstag){toast('Preencha ao menos um campo para alterar');return}
+  if(!confirm('Aplicar as alterações a '+leadSel.size+' lead(s)?'+(nomeEstag?'\n\nEnviar/transferir todos para '+nomeEstag+'.':'')))return;
+  const ids = [...leadSel];
+  loading(true,'Alterando '+ids.length+' lead(s)…');
+  let ok = true;
+  if(Object.keys(campos).length){
+    const r1 = await apiPost({action:'editarLeadsLote',ids,campos});
+    if(!r1.ok){ok=false;toast('Erro: '+r1.erro)}
+  }
+  if(ok && nomeEstag){
+    // envia os pendentes e TRANSFERE os já enviados para o novo estagiário
+    const r2 = await apiPost({action:'enviarLeadsEstagiario',ids,estagiario:nomeEstag});
+    if(r2.ok){toast((r2.encaminhados||0)+' enviado(s) para a fila e '+(r2.transferidos||0)+' transferido(s) para '+nomeEstag)}
+    else{ok=false;toast('Erro: '+r2.erro)}
+  }else if(ok){
+    toast('Lead(s) alterados');
+  }
   loading(false);
-  if(resp.ok){
+  if(ok){
     fecharModal('mLeadLote');
-    toast(resp.total+' lead(s) alterados');
     leadSel.clear();
-    await carregar(); // recarrega: se a Info virou ESTAGIÁRIO, a distribuição já aconteceu
-  }else toast('Erro: '+resp.erro);
+    await carregar();
+  }
 }
 
 async function excluirLeadsSel(){
@@ -2094,7 +2119,9 @@ function abrirNovoLead(){
   $('leadTitulo').textContent = 'Novo lead';
   ['ld_NOME','ld_EMPRESA','ld_ATENDENTE','ld_ESTAG'].forEach(id=>$(id).value='');
   setTelsLead('');
-  $('ld_DATA').value = new Date().toISOString().slice(0,10);
+  const hj=new Date();
+  $('ld_BASE').value = hj.getFullYear()+'-'+String(hj.getMonth()+1).padStart(2,'0');
+  $('ld_DATA').value = '';
   $('mLead').classList.add('aberto');
   setTimeout(()=>$('ld_NOME').focus(),100);
 }
@@ -2107,6 +2134,8 @@ function abrirEditarLead(id){
   $('ld_EMPRESA').value=r.EMPRESA||'';$('ld_ATENDENTE').value=r.ATENDENTE||'';
   $('ld_ESTAG').value='';
   $('ld_DATA').value = dataISO(r.DATA)||'';
+  const bs = String(r.BASE||''); // mm/aaaa
+  $('ld_BASE').value = /^\d{2}\/\d{4}$/.test(bs) ? bs.slice(3,7)+'-'+bs.slice(0,2) : '';
   $('mLead').classList.add('aberto');
 }
 async function salvarLead(){
@@ -2115,14 +2144,15 @@ async function salvarLead(){
     TELEFONE:getTelsLead(),
     EMPRESA:$('ld_EMPRESA').value.trim(),
     DATA:dataBR($('ld_DATA').value),
+    BASE:$('ld_BASE').value ? $('ld_BASE').value.slice(5,7)+'/'+$('ld_BASE').value.slice(0,4) : '',
     ATENDENTE:$('ld_ATENDENTE').value.trim()
   };
   if(!reg.NOME){toast('Informe o nome');return}
   const esDireto = $('ld_ESTAG').value.trim();
+  let nomeEstagInd = null;
   if(esDireto){
-    const nomeEstag = estagValido(esDireto);
-    if(!nomeEstag){toast('Estagiário não encontrado: cadastre-o em Usuários com o tipo ESTAGIÁRIO');return}
-    reg.ATENDENTE = nomeEstag; // leads já enviados não são reenviados (envio único)
+    nomeEstagInd = estagValido(esDireto);
+    if(!nomeEstagInd){toast('Estagiário não encontrado: cadastre-o em Usuários com o tipo ESTAGIÁRIO');return}
   }else{
     if(reg.ATENDENTE && !infoValida(reg.ATENDENTE) && !leadEditId && !estagValido(reg.ATENDENTE)){toast('A Info aceita apenas ROBO ou ESTAGIÁRIO');return}
     if(reg.ATENDENTE && infoValida(reg.ATENDENTE)) reg.ATENDENTE = infoValida(reg.ATENDENTE);
@@ -2132,9 +2162,11 @@ async function salvarLead(){
   const resp = await apiPost({action:'salvarLead',registro:reg});
   loading(false);
   if(resp.ok){
-    if(esDireto){
+    if(nomeEstagInd){
+      const r2 = await apiPost({action:'enviarLeadsEstagiario',ids:[reg.ID],estagiario:nomeEstagInd});
       fecharModal('mLead');
-      toast('Lead endereçado a '+reg.ATENDENTE+' — envio automático em dia útil, respeitando 15/dia');
+      if(r2.ok){toast(r2.transferidos?('Transferido para '+nomeEstagInd):('Endereçado a '+nomeEstagInd+' — envio automático em dia útil, respeitando 15/dia'))}
+      else toast('Erro: '+r2.erro);
       await carregar();
       return;
     }
@@ -2196,7 +2228,8 @@ function importarLeads(input){
       NOME:String(l[idx.NOME]||'').trim(),
       TELEFONE:String(l[idx.TELEFONE]||'').trim(),
       EMPRESA:String(l[idx.EMPRESA]||'').trim(),
-      DATA:String(l[idx.DATA]||'').trim(),
+      // DATA fica em branco: será preenchida com o dia do envio ao estagiário;
+      // a BASE (mês/ano da importação) é gravada automaticamente pelo servidor
       ATENDENTE:infoValida(l[idx.INFO])||''
     }));
     const nEst = regs.filter(r=>r.ATENDENTE==='ESTAGIÁRIO').length;
