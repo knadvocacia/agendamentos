@@ -268,7 +268,12 @@ td.acao{white-space:nowrap}
     <div class="modal-corpo">
       <div class="grade" style="grid-template-columns:1fr 1fr">
         <div class="campo c2"><label>Nome</label><input id="ld_NOME"></div>
-        <div class="campo"><label>Telefone</label><input id="ld_TELEFONE"></div>
+        <div class="campo"><label>Telefone(s)</label>
+          <div id="ld_TELS" style="display:flex;flex-direction:column;gap:4px">
+            <input class="ld-tel" placeholder="Telefone">
+          </div>
+          <button type="button" class="btn btn-mini btn-borda" style="margin-top:4px;align-self:flex-start" onclick="addTelLead()">+ telefone</button>
+        </div>
         <div class="campo"><label>Data</label><input type="date" id="ld_DATA"></div>
         <div class="campo c2"><label>Empresa</label><input id="ld_EMPRESA"></div>
         <div class="campo c2"><label>Info</label><input id="ld_ATENDENTE" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO (opcional)"></div>
@@ -1964,10 +1969,31 @@ async function excluirLeadsSel(){
   }else toast('Erro: '+resp.erro);
 }
 
+function setTelsLead(valor){
+  const tels = String(valor||'').split('/').map(t=>t.trim()).filter(Boolean);
+  const box = $('ld_TELS');
+  box.innerHTML='';
+  (tels.length?tels:['']).forEach(t=>{
+    const i=document.createElement('input');
+    i.className='ld-tel';i.placeholder='Telefone';i.value=t;
+    box.appendChild(i);
+  });
+}
+function addTelLead(){
+  const i=document.createElement('input');
+  i.className='ld-tel';i.placeholder='Telefone';
+  $('ld_TELS').appendChild(i);
+  i.focus();
+}
+function getTelsLead(){
+  return [...document.querySelectorAll('#ld_TELS .ld-tel')].map(i=>i.value.trim()).filter(Boolean).join(' / ');
+}
+
 function abrirNovoLead(){
   leadEditId = null;
   $('leadTitulo').textContent = 'Novo lead';
-  ['ld_NOME','ld_TELEFONE','ld_EMPRESA','ld_ATENDENTE','ld_ESTAG'].forEach(id=>$(id).value='');
+  ['ld_NOME','ld_EMPRESA','ld_ATENDENTE','ld_ESTAG'].forEach(id=>$(id).value='');
+  setTelsLead('');
   $('ld_DATA').value = new Date().toISOString().slice(0,10);
   $('mLead').classList.add('aberto');
   setTimeout(()=>$('ld_NOME').focus(),100);
@@ -1977,7 +2003,7 @@ function abrirEditarLead(id){
   if(!r)return;
   leadEditId = id;
   $('leadTitulo').textContent = 'Editar — '+(r.NOME||'');
-  $('ld_NOME').value=r.NOME||'';$('ld_TELEFONE').value=r.TELEFONE||'';
+  $('ld_NOME').value=r.NOME||'';setTelsLead(r.TELEFONE||'');
   $('ld_EMPRESA').value=r.EMPRESA||'';$('ld_ATENDENTE').value=r.ATENDENTE||'';
   $('ld_ESTAG').value='';
   $('ld_DATA').value = dataISO(r.DATA)||'';
@@ -1986,7 +2012,7 @@ function abrirEditarLead(id){
 async function salvarLead(){
   const reg = {
     NOME:$('ld_NOME').value.trim(),
-    TELEFONE:$('ld_TELEFONE').value.trim(),
+    TELEFONE:getTelsLead(),
     EMPRESA:$('ld_EMPRESA').value.trim(),
     DATA:dataBR($('ld_DATA').value),
     ATENDENTE:$('ld_ATENDENTE').value.trim()
