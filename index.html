@@ -249,7 +249,7 @@ td.acao{white-space:nowrap}
     <datalist id="dlInfo"><option value="ROBO"><option value="ESTAGIÁRIO"></datalist>
     <div class="direita" style="align-items:flex-end">
       <span style="display:flex;flex-direction:column;gap:4px;align-items:stretch">
-        <button class="btn btn-mini btn-borda doc-add" style="position:relative" id="btnImportLead">
+        <button class="btn btn-mini btn-borda doc-add master-so" style="position:relative;display:none">
           &#128229; Importar planilha <input type="file" accept=".xlsx,.xls,.csv" onchange="importarLeads(this)">
         </button>
         <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
@@ -372,10 +372,10 @@ td.acao{white-space:nowrap}
     <span style="color:var(--cinza);font-size:12px">Lista: cria registros · Resultados: só preenche o status dos nomes já importados</span>
     <div class="direita" style="align-items:flex-end">
       <span style="display:flex;flex-direction:column;gap:4px;align-items:stretch">
-        <button class="btn btn-mini btn-borda doc-add" style="position:relative">
+        <button class="btn btn-mini btn-borda doc-add master-so" style="position:relative;display:none">
           &#128229; Importar lista <input type="file" accept=".xlsx,.xls,.csv,.pdf" onchange="importarAgArquivo(this,'lista')">
         </button>
-        <button class="btn btn-mini btn-borda doc-add" style="position:relative">
+        <button class="btn btn-mini btn-borda doc-add master-so" style="position:relative;display:none">
           &#128229; Importar resultados <input type="file" accept=".xlsx,.xls,.csv,.pdf" onchange="importarAgArquivo(this,'resultados')">
         </button>
         <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
@@ -439,6 +439,8 @@ td.acao{white-space:nowrap}
     <button class="btn btn-mini btn-borda" onclick="abrirEditarAtendLote()" id="btnAtendLote">Editar selecionados (0)</button>
     <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirAtendSel()">Excluir selecionados</button>
     <span class="fechados-badge" id="badgeFechados" title="Atualiza conforme os filtros aplicados">CLIENTES FECHADOS: 0</span>
+    <span class="fechados-badge badge-neutro" id="badgePendentes" title="Status PENDENTE — atualiza conforme os filtros">PENDENTES: 0</span>
+    <span class="fechados-badge badge-amarelo" id="badgePendAssin" title="Status PENDENTE ASSINATURA — atualiza conforme os filtros">PEND. ASSINATURA: 0</span>
     <span class="periodo-box">
       <label for="filtroMes">Período:</label>
       <input type="month" id="filtroMes" title="Filtra os atendimentos pelo mês da data">
@@ -450,10 +452,10 @@ td.acao{white-space:nowrap}
         <button class="btn btn-mini btn-borda" onclick="exportarExcel('atendimentos')" title="Exportar os dados filtrados em Excel">&#11015; Excel</button>
         <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('atendimentos')" title="Exportar os dados filtrados em PDF">&#11015; PDF</button>
       </span>
-      <button class="btn btn-mini btn-borda doc-add" style="position:relative">
+      <button class="btn btn-mini btn-borda doc-add master-so" style="position:relative;display:none">
         Importar Excel/CSV <input type="file" accept=".xlsx,.xls,.csv" onchange="importarExcel(this)">
       </button>
-      <button class="btn btn-mini btn-borda doc-add" style="position:relative">
+      <button class="btn btn-mini btn-borda doc-add master-so" style="position:relative;display:none">
         Importar PDF <input type="file" accept=".pdf" onchange="importarPdf(this)">
       </button>
       <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
@@ -1082,10 +1084,10 @@ function renderizar(){
     return `<tr class="st-${cor}" onclick="abrirFicha('${r.ID}')">
       <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${atendSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleAtendSel('${r.ID}',this.checked)"></td>
       <td>${esc(dataBR(r.DATA))}</td><td>${esc(r.HORARIO||'')}</td>
-      <td><span class="pill ${cor}">${esc(r.STATUS)||'—'}</span>${extra.length?'<div style="font-size:11px;margin-top:3px">'+extra.join(' · ')+'</div>':''}</td>
-      <td><b>${esc(r.NOME)}</b></td><td>${esc(r.TELEFONE)}</td>
-      <td>${esc(r.EMPRESA)}</td><td>${esc(r.RESPONSAVEL)}</td><td>${esc(r.PASTA)}</td>
-      <td>${esc(r.ADV_ATENDIMENTO)}</td><td>${esc(dataBR(r.DATA_SAIDA))}</td>
+      <td title="${esc(r.STATUS)||''}"><span class="pill ${cor}">${esc(r.STATUS)||'—'}</span>${extra.length?'<div style="font-size:11px;margin-top:3px">'+extra.join(' · ')+'</div>':''}</td>
+      <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b></td><td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
+      <td title="${esc(r.EMPRESA)}">${esc(r.EMPRESA)}</td><td title="${esc(r.RESPONSAVEL)}">${esc(r.RESPONSAVEL)}</td><td title="${esc(r.PASTA)}">${esc(r.PASTA)}</td>
+      <td title="${esc(r.ADV_ATENDIMENTO)}">${esc(r.ADV_ATENDIMENTO)}</td><td>${esc(dataBR(r.DATA_SAIDA))}</td>
       <td><span class="docs-chip">${totalDocs(r)} arq.</span></td>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(obs)}">${esc(obs)}</td>
       <td class="acao">
@@ -1101,6 +1103,8 @@ function renderizar(){
   $('contAtend').textContent = registros.filter(r=>normaliza(r.STATUS)==='FECHOU' && dataISO(r.DATA_FECHAMENTO).slice(0,7)===mesAtual).length; // fechados do mês
   $('resumoFiltro').textContent = (Object.keys(f).length||mes||dDe||dAte)?`${visiveis.length} de ${registros.length} registros`:'';
   $('badgeFechados').textContent = 'CLIENTES FECHADOS: '+visiveis.filter(r=>normaliza(r.STATUS)==='FECHOU').length;
+  $('badgePendentes').textContent = 'PENDENTES: '+visiveis.filter(r=>normaliza(r.STATUS)==='PENDENTE').length;
+  $('badgePendAssin').textContent = 'PEND. ASSINATURA: '+visiveis.filter(r=>normaliza(r.STATUS)==='PENDENTE ASSINATURA').length;
 
   /* --- aba 2 --- */
   const fechados = registros.filter(r=>normaliza(r.STATUS)==='FECHOU');
@@ -1418,7 +1422,7 @@ function renderDocs(){
         ${lista.map(d=>{
           const podeRemover = usuario && (usuario.master || !souEstagiario() || (d.por && normaliza(d.por)===normaliza(usuario.nome)));
           return `<span class="doc-arquivo">
-            <a href="https://drive.google.com/file/d/${d.id}/view" target="_blank" title="${esc(d.nome)}${d.por?' — anexado por '+esc(d.por):''}">${esc(d.nome)}</a>
+            <a href="#" onclick="event.preventDefault();verDocArquivo('${d.id}')" title="${esc(d.nome)}${d.por?' — anexado por '+esc(d.por):''} — clique para visualizar">${esc(d.nome)}</a>
             <button title="Baixar este arquivo" onclick="baixarDocArquivo('${d.id}')">&#11015;</button>
             ${podeRemover?`<button title="Remover" onclick="removerDoc('${col}','${d.id}')">&times;</button>`:''}
           </span>`}).join('')}
@@ -1430,10 +1434,39 @@ function renderDocs(){
   $('docsOutros').innerHTML = linha(['DOC_OUTROS','Outros documentos']);
 }
 
-function abrirDocsCol(col){
-  let lista=[]; try{lista=JSON.parse(fichaAtual[col]||'[]')}catch(e){}
+function docParaBlobUrl(r){
+  const bytes = Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0));
+  return URL.createObjectURL(new Blob([bytes],{type:r.mime||'application/octet-stream'}));
+}
+
+async function verDocArquivo(driveId){
+  // abre a janela no clique (evita bloqueio de pop-up) e carrega o arquivo pelo sistema,
+  // sem depender de permissão do Google Drive
+  const jan = window.open('','_blank');
+  if(jan){try{jan.document.write('<title>Documento</title><p style="font-family:sans-serif">Carregando o documento…</p>')}catch(e){}}
+  loading(true,'Abrindo documento…');
+  const r = await apiPost({action:'baixarDoc',driveId});
+  loading(false);
+  if(!r.ok){if(jan)jan.close();toast('Erro: '+r.erro);return}
+  const url = docParaBlobUrl(r);
+  if(jan){jan.location = url}
+  else{window.open(url,'_blank')}
+}
+
+async function abrirDocsCol(colOuLista){
+  let lista=[]; try{lista=JSON.parse(fichaAtual[colOuLista]||'[]')}catch(e){}
   if(!lista.length)return;
-  lista.forEach(d=>window.open('https://drive.google.com/file/d/'+d.id+'/view','_blank'));
+  // abre as janelas no gesto do clique e preenche uma a uma pelo sistema
+  const janelas = lista.map(()=>window.open('','_blank'));
+  loading(true,'Abrindo '+lista.length+' documento(s)…');
+  for(let i=0;i<lista.length;i++){
+    try{
+      const r = await apiPost({action:'baixarDoc',driveId:lista[i].id});
+      if(r.ok && janelas[i]) janelas[i].location = docParaBlobUrl(r);
+      else if(janelas[i]) janelas[i].close();
+    }catch(e){if(janelas[i])janelas[i].close()}
+  }
+  loading(false);
 }
 
 async function baixarDocArquivo(driveId){
@@ -1866,7 +1899,7 @@ async function confirmarImportacao(){
   fecharModal('mImport');
   loading(true,`Importando ${novos.length} registros…`);
   try{
-    const r = await apiPost({action:'salvarLote',registros:novos});
+    const r = await apiPost({action:'salvarLote',registros:novos,senhaMaster:usuario.senha});
     if(r.ok){toast(r.total+' registros importados');await carregar()}
     else toast('Erro: '+r.erro);
   }catch(e){toast('Falha na importação')}
@@ -1896,7 +1929,7 @@ function renderLeads(){
   if(window.atualizarIconesFiltro)atualizarIconesFiltro();
   const estag = souEstagiario();
   // estagiário só trabalha a própria fila: esconde criação/importação/atribuição
-  ['btnNovoLead','boxAtribuir','btnImportLead','dicaEstagiario'].forEach(id=>{
+  ['btnNovoLead','boxAtribuir','dicaEstagiario'].forEach(id=>{
     const el=$(id); if(el) el.style.display = estag?'none':'';
   });
   const base = estag ? leadRegistros.filter(r=>normaliza(r.ATENDENTE)===normaliza(usuario.nome)) : leadRegistros;
@@ -2174,7 +2207,7 @@ function importarLeads(input){
       :'\n\nAtenção: nenhuma coluna de Info (ROBO/ESTAGIÁRIO) foi encontrada na planilha.')))return;
     (async()=>{
       loading(true,'Importando '+regs.length+' leads…');
-      const resp = await apiPost({action:'salvarLeadsLote',registros:regs});
+      const resp = await apiPost({action:'salvarLeadsLote',registros:regs,senhaMaster:usuario.senha});
       loading(false);
       if(resp.ok){toast(resp.total+' leads importados');await carregar()}
       else toast('Erro: '+resp.erro);
@@ -2440,7 +2473,7 @@ function agPreImport(linhas){
     if(!confirm('Conciliar '+regs.length+' resultado(s) com os agendamentos existentes? Nenhum registro novo será criado.'))return;
     (async()=>{
       loading(true,'Conciliando resultados…');
-      const resp = await apiPost({action:'conciliarResultados',registros:regs});
+      const resp = await apiPost({action:'conciliarResultados',registros:regs,senhaMaster:usuario.senha});
       loading(false);
       if(resp.ok){
         let msg = resp.atualizados+' status atualizados';
@@ -2457,7 +2490,7 @@ function agPreImport(linhas){
   if(!confirm('Importar '+regs.length+' registro(s) para os Agendamentos?'))return;
   (async()=>{
     loading(true,'Importando '+regs.length+' registros…');
-    const resp = await apiPost({action:'salvarAgendamentosLote',registros:regs});
+    const resp = await apiPost({action:'salvarAgendamentosLote',registros:regs,senhaMaster:usuario.senha});
     loading(false);
     if(resp.ok){toast(resp.total+' registros importados');await carregar()}
     else toast('Erro: '+resp.erro);
