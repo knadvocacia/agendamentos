@@ -822,7 +822,7 @@ td.acao{white-space:nowrap}
       <div class="usu-linha" style="border-style:dashed">
         <input type="text" id="novoNome" placeholder="Nome do usuário">
         <input type="text" id="novaSenha" placeholder="Senha" style="width:120px">
-        <select id="novoTipo" title="Tipo do usuário"><option>ADVOGADO</option><option>ESTAGIÁRIO</option><option>ATENDENTE</option></select>
+        <select id="novoTipo" title="Tipo do usuário"><option>ADVOGADO</option><option>ESTAGIÁRIO</option><option>ATENDENTE</option><option>ABERTURA DE PASTA</option></select>
         <span class="abas-check">
           <label><input type="checkbox" id="novoLead"> Lead</label>
           <label><input type="checkbox" id="novoAgend"> Agendamentos</label>
@@ -2782,21 +2782,52 @@ async function entrar(){
   }catch(e){loading(false);$('loginErro').textContent='Falha de conexão'}
 }
 
-function aplicarLogin(){
-  $('telaLogin').style.display='none';
-  $('loginSenha').value='';
+function podeAba(a){return usuario && (usuario.master || (usuario.abas||[]).includes(a))}
+
+function aplicarPermissoesUI(){
   $('usuLogado').textContent = usuario.nome;
   $('btnUsuarios').style.display = usuario.master?'inline-flex':'none';
   document.querySelectorAll('.master-so').forEach(el=>el.style.display = usuario.master?'inline-flex':'none');
-  // abas permitidas
-  const pode = a => usuario.master || usuario.abas.includes(a);
   document.querySelectorAll('.aba').forEach(b=>{
-    b.style.display = pode(b.dataset.aba)?'inline-flex':'none';
+    b.style.display = podeAba(b.dataset.aba)?'inline-flex':'none';
   });
+}
+
+function aplicarLogin(){
+  usuario.abas = usuario.abas||[];
+  $('telaLogin').style.display='none';
+  $('loginSenha').value='';
+  aplicarPermissoesUI();
   $('agAdvSel').innerHTML='';
-  const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(pode) || 'atendimentos';
+  const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
   trocarAba(primeira);
   carregar();
+}
+
+async function revalidarSessao(){
+  // sessões guardadas no navegador podem ser de versões antigas do sistema
+  // (sem as abas novas) ou ter permissões desatualizadas — busca as atuais no servidor
+  try{
+    const r = await apiPost({action:'login',senha:usuario.senha});
+    if(!r.ok){
+      sair();
+      toast('Sua senha ou seu acesso mudou — entre novamente');
+      return;
+    }
+    const novo = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha:usuario.senha, abas:String(r.abas||'').split(',').filter(Boolean)};
+    const mudou = JSON.stringify([novo.master,novo.tipo,novo.abas]) !== JSON.stringify([usuario.master,usuario.tipo||'ADVOGADO',usuario.abas||[]]);
+    usuario = novo;
+    sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
+    if(mudou){
+      aplicarPermissoesUI();
+      const ativa = document.querySelector('.aba.ativa');
+      if(!ativa || !podeAba(ativa.dataset.aba)){
+        const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+        trocarAba(primeira);
+      }
+      renderizar(); renderAgendamentos(); renderLeads();
+    }
+  }catch(e){/* sem conexão: mantém a sessão guardada */}
 }
 
 function sair(){
@@ -2809,7 +2840,7 @@ function sair(){
 }
 
 function trocarAba(nome){
-  if(usuario && !usuario.master && !usuario.abas.includes(nome)) return;
+  if(usuario && !usuario.master && !(usuario.abas||[]).includes(nome)) return;
   document.querySelectorAll('.aba').forEach(b=>b.classList.toggle('ativa',b.dataset.aba===nome));
   document.querySelectorAll('.painel').forEach(p=>p.classList.remove('ativo'));
   $('painel-'+nome).classList.add('ativo');
@@ -2833,9 +2864,10 @@ function renderUsuarios(){
       <input type="text" id="uNome_${i}" value="${esc(u.nome)}">
       <input type="text" id="uSenha_${i}" value="${esc(u.senha)}" style="width:120px">
       <select id="uTipo_${i}" title="Tipo do usuário">
-        <option ${['ESTAGIARIO','ATENDENTE'].includes(normaliza(u.tipo||''))?'':'selected'}>ADVOGADO</option>
+        <option ${['ESTAGIARIO','ATENDENTE','ABERTURA DE PASTA'].includes(normaliza(u.tipo||''))?'':'selected'}>ADVOGADO</option>
         <option ${normaliza(u.tipo||'')==='ESTAGIARIO'?'selected':''}>ESTAGIÁRIO</option>
         <option ${normaliza(u.tipo||'')==='ATENDENTE'?'selected':''}>ATENDENTE</option>
+        <option ${normaliza(u.tipo||'')==='ABERTURA DE PASTA'?'selected':''}>ABERTURA DE PASTA</option>
       </select>
       <span class="abas-check">
         <label><input type="checkbox" id="uLead_${i}" ${abas.includes('lead')?'checked':''}> Lead</label>
@@ -2975,7 +3007,11 @@ async function excluirUsuario(i){
   if(salvo){
     try{usuario = JSON.parse(salvo)}catch(e){usuario=null}
   }
-  if(usuario){aplicarLogin()}
+  if(usuario){
+    usuario.abas = usuario.abas||[];
+    aplicarLogin();       // mostra já com as permissões guardadas
+    revalidarSessao();    // e atualiza com as permissões atuais do servidor
+  }
   else{$('telaLogin').style.display='flex';setTimeout(()=>$('loginSenha').focus(),100)}
 })();
 </script>
