@@ -937,10 +937,20 @@ async function carregar(){
   if(API_URL.indexOf('COLE_AQUI')===0){toast('Configure a API_URL no início do arquivo index.html');renderizar();return}
   loading(true,'Carregando dados…');
   try{
-    const [r, ra, rl] = await Promise.all([apiGet(), apiPost({action:'listarAgendamentos'}), apiPost({action:'listarLeads'})]);
-    if(r.ok){registros=r.registros}else{toast('Erro: '+r.erro)}
-    if(ra.ok){agRegistros=ra.registros}
-    if(rl.ok){leadRegistros=rl.registros}
+    // uma única requisição traz atendimentos + agendamentos + leads (muito mais rápido)
+    const r = await apiPost({action:'carregarTudo'});
+    if(r.ok){
+      registros = r.atendimentos||[];
+      agRegistros = r.agendamentos||[];
+      leadRegistros = r.leads||[];
+    }else if(String(r.erro||'').includes('Ação inválida')){
+      // implantação antiga do Code.gs: usa o caminho anterior (3 chamadas)
+      const [r1, ra, rl] = await Promise.all([apiGet(), apiPost({action:'listarAgendamentos'}), apiPost({action:'listarLeads'})]);
+      if(r1.ok){registros=r1.registros}else{toast('Erro: '+r1.erro)}
+      if(ra.ok){agRegistros=ra.registros}
+      if(rl.ok){leadRegistros=rl.registros}
+      toast('Atualize o Code.gs (Nova versão) para o carregamento rápido');
+    }else{toast('Erro: '+r.erro)}
   }catch(e){toast('Falha de conexão com o Apps Script')}
   loading(false);
   renderizar();
