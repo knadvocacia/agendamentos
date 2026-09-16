@@ -102,6 +102,11 @@ tr.nomes th{top:0 !important}
 .filtro-pop.pop-dir{left:auto;right:2px}
 .filtro-pop input,.filtro-pop select{width:100%;padding:5px 7px;border:1px solid var(--linha);border-radius:6px;font-size:12px;color:#2b2b2b;background:#fff}
 tbody td{padding:8px 10px;border-top:1px solid var(--linha);font-size:13px;vertical-align:middle}
+/* estagiários não veem Horário nem Adv. Atendimento na aba Atendimentos */
+body.modo-estag #painel-atendimentos tr.nomes th:nth-child(3),
+body.modo-estag #painel-atendimentos tbody td:nth-child(3),
+body.modo-estag #painel-atendimentos tr.nomes th:nth-child(10),
+body.modo-estag #painel-atendimentos tbody td:nth-child(10){display:none}
 /* aba Atendimentos: linhas finas para ver muitos contatos de uma vez */
 #painel-atendimentos tbody td{padding:2px 6px;font-size:11.5px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 #painel-atendimentos tbody td .docs-chip{font-size:10px;padding:1px 6px}
@@ -238,7 +243,7 @@ td.acao{white-space:nowrap}
       <input id="leadAtendente" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO" style="width:170px;border:1px solid var(--linha)">
       <button class="btn btn-mini btn-principal" onclick="atribuirLeadsSel()" id="btnAtribuir">Atribuir aos selecionados (0)</button>
       <button class="btn btn-mini btn-borda" onclick="abrirEditarLote()">Editar selecionados</button>
-      <button class="btn btn-mini btn-perigo" onclick="excluirLeadsSel()">Excluir selecionados</button>
+      <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsSel()">Excluir selecionados</button>
     </span>
     <span style="color:var(--cinza);font-size:12px" id="dicaEstagiario">Info <b>ESTAGIÁRIO</b> = envio automático de até <b>15 leads/dia por estagiário</b> na aba Atendimentos, de <b>segunda a sexta</b>, sem duplicidade (cada lead vai 1 única vez)</span>
     <datalist id="dlInfo"><option value="ROBO"><option value="ESTAGIÁRIO"></datalist>
@@ -432,7 +437,7 @@ td.acao{white-space:nowrap}
   <div class="barra">
     <button class="btn btn-principal" onclick="abrirFicha()">+ Novo atendimento</button>
     <button class="btn btn-mini btn-borda" onclick="abrirEditarAtendLote()" id="btnAtendLote">Editar selecionados (0)</button>
-    <button class="btn btn-mini btn-perigo" onclick="excluirAtendSel()">Excluir selecionados</button>
+    <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirAtendSel()">Excluir selecionados</button>
     <span class="fechados-badge" id="badgeFechados" title="Atualiza conforme os filtros aplicados">CLIENTES FECHADOS: 0</span>
     <span class="periodo-box">
       <label for="filtroMes">Período:</label>
@@ -1029,7 +1034,7 @@ async function excluirAtendSel(){
   if(!atendSel.size){toast('Marque ao menos um atendimento na lista');return}
   if(!confirm('Excluir '+atendSel.size+' atendimento(s) selecionado(s)? Os documentos anexados continuam no Drive. Esta ação não pode ser desfeita.'))return;
   loading(true,'Excluindo '+atendSel.size+' atendimento(s)…');
-  const resp = await apiPost({action:'excluirAtendLote',ids:[...atendSel]});
+  const resp = await apiPost({action:'excluirAtendLote',ids:[...atendSel],senhaMaster:usuario.senha});
   loading(false);
   if(resp.ok){
     registros = registros.filter(r=>!atendSel.has(r.ID));
@@ -1085,7 +1090,7 @@ function renderizar(){
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(obs)}">${esc(obs)}</td>
       <td class="acao">
         <button class="btn btn-mini btn-borda" onclick="event.stopPropagation();abrirFicha('${r.ID}')">Editar</button>
-        <button class="btn btn-mini btn-perigo" onclick="event.stopPropagation();excluirLinha('${r.ID}')">Excluir</button>
+        ${usuario&&usuario.master?`<button class="btn btn-mini btn-perigo" onclick="event.stopPropagation();excluirLinha('${r.ID}')">Excluir</button>`:''}
       </td>
     </tr>`}).join('');
   $('vazioAtend').style.display = visiveis.length?'none':'block';
@@ -1306,12 +1311,16 @@ function renderizar(){
 function abrirFicha(id){
   fichaAtual = id ? registros.find(r=>r.ID===id) : null;
   $('fichaTitulo').textContent = fichaAtual ? 'Atendimento — '+(fichaAtual.NOME||'') : 'Novo atendimento';
-  $('btnExcluir').style.display = fichaAtual?'inline-flex':'none';
+  $('btnExcluir').style.display = (fichaAtual && usuario && usuario.master)?'inline-flex':'none';
   const g = c => fichaAtual ? (fichaAtual[c]||'') : '';
   $('f_DATA').value = dataISO(g('DATA'))||g('DATA');
   $('f_DATA_SAIDA').value = dataISO(g('DATA_SAIDA'))||g('DATA_SAIDA');
   ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO']
     .forEach(c=>$('f_'+c).value=g(c));
+  // estagiários não usam Horário nem Adv. atendimento
+  const estagF = souEstagiario();
+  $('f_HORARIO').closest('.campo').style.display = estagF?'none':'';
+  $('f_ADV_ATENDIMENTO').closest('.campo').style.display = estagF?'none':'';
   // descrição da pendência registrada na Conferência (somente leitura)
   const pendConf = g('CONF_OBS');
   $('boxPendConf').style.display = pendConf?'block':'none';
@@ -1365,10 +1374,10 @@ async function salvarFicha(){
       renderizar(); renderDocs();
       if(r.statusAjustado){
         // mantém a ficha aberta para anexar os documentos que faltam
-        $('fichaTitulo').textContent='Atendimento — '+reg.NOME; $('btnExcluir').style.display='inline-flex';
+        $('fichaTitulo').textContent='Atendimento — '+reg.NOME; $('btnExcluir').style.display=(usuario&&usuario.master)?'inline-flex':'none';
       }
       else if(normaliza(reg.STATUS)!=='FECHOU') fecharModal('mFicha');
-      else { $('fichaTitulo').textContent='Atendimento — '+reg.NOME; $('btnExcluir').style.display='inline-flex'; }
+      else { $('fichaTitulo').textContent='Atendimento — '+reg.NOME; $('btnExcluir').style.display=(usuario&&usuario.master)?'inline-flex':'none'; }
     }else toast('Erro: '+r.erro);
   }catch(e){toast('Falha ao salvar')}
   loading(false);
@@ -1379,7 +1388,7 @@ async function excluirLinha(id){
   if(!r) return;
   if(!confirm('Excluir o atendimento de '+(r.NOME||'este cliente')+'?')) return;
   loading(true,'Excluindo…');
-  const resp = await apiPost({action:'excluir',id});
+  const resp = await apiPost({action:'excluir',id,senhaMaster:usuario.senha});
   loading(false);
   if(resp.ok){registros=registros.filter(x=>x.ID!==id);renderizar();toast('Excluído')}
   else toast('Erro: '+resp.erro);
@@ -1389,7 +1398,7 @@ async function excluirRegistro(){
   if(!fichaAtual) return;
   if(!confirm('Excluir o atendimento de '+fichaAtual.NOME+'?')) return;
   loading(true,'Excluindo…');
-  const r = await apiPost({action:'excluir',id:fichaAtual.ID});
+  const r = await apiPost({action:'excluir',id:fichaAtual.ID,senhaMaster:usuario.senha});
   loading(false);
   if(r.ok){registros=registros.filter(x=>x.ID!==fichaAtual.ID);fecharModal('mFicha');renderizar();toast('Excluído')}
   else toast('Erro: '+r.erro);
@@ -1406,11 +1415,13 @@ function renderDocs(){
     return `<div class="doc-linha">
       <div class="titulo">${titulo}${lista.length?` <span class="docs-chip" style="cursor:pointer" onclick="abrirDocsCol('${col}')" title="${lista.length} documento(s) anexado(s) — clique para abrir">${lista.length}</span>`:''}</div>
       <div class="arquivos">
-        ${lista.map(d=>`<span class="doc-arquivo">
-            <a href="https://drive.google.com/file/d/${d.id}/view" target="_blank" title="${esc(d.nome)}">${esc(d.nome)}</a>
+        ${lista.map(d=>{
+          const podeRemover = usuario && (usuario.master || !souEstagiario() || (d.por && normaliza(d.por)===normaliza(usuario.nome)));
+          return `<span class="doc-arquivo">
+            <a href="https://drive.google.com/file/d/${d.id}/view" target="_blank" title="${esc(d.nome)}${d.por?' — anexado por '+esc(d.por):''}">${esc(d.nome)}</a>
             <button title="Baixar este arquivo" onclick="baixarDocArquivo('${d.id}')">&#11015;</button>
-            <button title="Remover" onclick="removerDoc('${col}','${d.id}')">&times;</button>
-          </span>`).join('')}
+            ${podeRemover?`<button title="Remover" onclick="removerDoc('${col}','${d.id}')">&times;</button>`:''}
+          </span>`}).join('')}
         <span class="btn btn-mini btn-borda doc-add">+ Anexar<input type="file" multiple accept=".pdf,image/*" onchange="anexar('${col}',this)"></span>
       </div>
     </div>`};
@@ -1501,7 +1512,7 @@ async function anexar(coluna,input,prefixo){
   for(let i=0;i<partes.length;i++){
     loading(true,'Enviando para o Drive'+(partes.length>1?' ('+(i+1)+'/'+partes.length+')':'')+'…');
     try{
-      const r = await apiPost({action:'uploadDocsLote',id:fichaAtual.ID,nome:fichaAtual.NOME,coluna,arquivos:partes[i]});
+      const r = await apiPost({action:'uploadDocsLote',id:fichaAtual.ID,nome:fichaAtual.NOME,coluna,arquivos:partes[i],por:usuario?usuario.nome:''});
       if(r.ok){
         fichaAtual[coluna]=JSON.stringify(r.lista);
         enviados += partes[i].length - (r.falhas||[]).length;
@@ -1509,7 +1520,7 @@ async function anexar(coluna,input,prefixo){
       }else if(String(r.erro||'').includes('Ação inválida')){
         // implantação antiga do Code.gs: envia um a um pelo caminho anterior
         for(const p of partes[i]){
-          const r1 = await apiPost({action:'uploadDoc',id:fichaAtual.ID,nome:fichaAtual.NOME,coluna,arquivoNome:p.arquivoNome,mimeType:p.mimeType,base64:p.base64});
+          const r1 = await apiPost({action:'uploadDoc',id:fichaAtual.ID,nome:fichaAtual.NOME,coluna,arquivoNome:p.arquivoNome,mimeType:p.mimeType,base64:p.base64,por:usuario?usuario.nome:''});
           if(r1.ok){fichaAtual[coluna]=JSON.stringify(r1.lista);enviados++}
           else falhas.push(p.arquivoNome);
         }
@@ -1915,8 +1926,8 @@ function renderLeads(){
       <td>${esc(r.EMPRESA)}</td>
       <td>${esc(r.ATENDENTE||'')}</td>
       <td class="acao">
-        ${estag?'':`<button class="btn btn-mini btn-borda" onclick="abrirEditarLead('${r.ID}')">Editar</button>
-        <button class="btn btn-mini btn-perigo" onclick="excluirLead('${r.ID}')">Excluir</button>`}
+        ${estag?'':`<button class="btn btn-mini btn-borda" onclick="abrirEditarLead('${r.ID}')">Editar</button>`}
+        ${usuario&&usuario.master?`<button class="btn btn-mini btn-perigo" onclick="excluirLead('${r.ID}')">Excluir</button>`:''}
       </td>
     </tr>`}).join('');
   $('vazioLead').style.display = visiveis.length?'none':'block';
@@ -2015,7 +2026,7 @@ async function excluirLeadsSel(){
   if(!leadSel.size){toast('Marque ao menos um lead na lista');return}
   if(!confirm('Excluir '+leadSel.size+' lead(s) selecionado(s)? Esta ação não pode ser desfeita.'))return;
   loading(true,'Excluindo '+leadSel.size+' lead(s)…');
-  const resp = await apiPost({action:'excluirLeadsLote',ids:[...leadSel]});
+  const resp = await apiPost({action:'excluirLeadsLote',ids:[...leadSel],senhaMaster:usuario.senha});
   loading(false);
   if(resp.ok){
     leadRegistros = leadRegistros.filter(r=>!leadSel.has(r.ID));
@@ -2112,7 +2123,7 @@ async function excluirLead(id){
   const r=leadRegistros.find(x=>x.ID===id);
   if(!confirm('Excluir o lead '+(r?r.NOME:'')+'?'))return;
   loading(true,'Excluindo…');
-  const resp = await apiPost({action:'excluirLead',id});
+  const resp = await apiPost({action:'excluirLead',id,senhaMaster:usuario.senha});
   loading(false);
   if(resp.ok){leadRegistros=leadRegistros.filter(x=>x.ID!==id);leadSel.delete(id);renderLeads();toast('Excluído')}
   else toast('Erro: '+resp.erro);
@@ -2228,7 +2239,7 @@ function renderAgendamentos(){
       <td class="acao">
         <button class="btn btn-mini btn-borda" onclick="abrirEditarAgendamento('${r.ID}')">Editar</button>
         ${ag && r.AGENDA_DATA ? `<button class="btn btn-mini btn-borda" onclick="agRemarcar('${r.ID}')" title="Escolher outro dia/horário">Remarcar</button>`:''}
-        <button class="btn btn-mini btn-perigo" onclick="excluirAgendamento('${r.ID}')">Excluir</button>
+        ${usuario&&usuario.master?`<button class="btn btn-mini btn-perigo" onclick="excluirAgendamento('${r.ID}')">Excluir</button>`:''}
       </td>
     </tr>`}).join('');
   $('vazioAgend').style.display = visiveis.length?'none':'block';
@@ -2385,7 +2396,7 @@ async function excluirAgendamento(id){
   const r = agRegistros.find(x=>x.ID===id);
   if(!confirm('Excluir '+(r?r.NOME:'este registro')+' dos agendamentos?'))return;
   loading(true,'Excluindo…');
-  const resp = await apiPost({action:'excluirAgendamento',id});
+  const resp = await apiPost({action:'excluirAgendamento',id,senhaMaster:usuario.senha});
   loading(false);
   if(resp.ok){agRegistros=agRegistros.filter(x=>x.ID!==id);renderAgendamentos();toast('Excluído')}
   else toast('Erro: '+resp.erro);
@@ -2842,6 +2853,7 @@ async function entrar(){
 function podeAba(a){return usuario && (usuario.master || (usuario.abas||[]).includes(a))}
 
 function aplicarPermissoesUI(){
+  document.body.classList.toggle('modo-estag', souEstagiario());
   $('usuLogado').textContent = usuario.nome;
   $('btnUsuarios').style.display = usuario.master?'inline-flex':'none';
   document.querySelectorAll('.master-so').forEach(el=>el.style.display = usuario.master?'inline-flex':'none');
@@ -2888,6 +2900,7 @@ async function revalidarSessao(){
 }
 
 function sair(){
+  document.body.classList.remove('modo-estag');
   sessionStorage.removeItem('usuarioADV');
   usuario=null;
   registros=[];
