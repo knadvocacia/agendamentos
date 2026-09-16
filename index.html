@@ -1,0 +1,2947 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Atendimentos ADV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --tinta:#22262b;          /* texto principal */
+  --papel:#eef0f2;          /* fundo geral */
+  --branco:#ffffff;
+  --navy:#1b2a41;           /* cabeçalho */
+  --oxblood:#7c2d3e;        /* acento jurídico */
+  --oxblood-claro:#9c4256;
+  --linha:#d5d9de;
+  --cinza:#6b7280;
+  --verde-bg:#d9f2df;  --verde-tx:#14532d;  --verde-bd:#86c79a;
+  --amarelo-bg:#fcf3ce; --amarelo-tx:#713f12; --amarelo-bd:#e3c96a;
+  --vermelho-bg:#fadddd;--vermelho-tx:#7f1d1d;--vermelho-bd:#e59a9a;
+  --azul-bg:#d8eaf8;   --azul-tx:#1d4e6e;   --azul-bd:#8fc0e0;
+  --cinza-bg:#e6e8eb;  --cinza-tx:#42484f;  --cinza-bd:#b4bac2;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Archivo',sans-serif;background:var(--papel);color:var(--tinta);font-size:14px}
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:13px;border:1px solid var(--linha);border-radius:6px;padding:7px 9px;background:var(--branco);color:var(--tinta)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--oxblood-claro);outline-offset:0;border-color:var(--oxblood)}
+
+/* ===== cabeçalho ===== */
+header{background:var(--navy);color:#f2ede4;padding:14px 26px 0;border-bottom:4px solid var(--oxblood);position:sticky;top:0;z-index:40}
+.marca{display:flex;align-items:center;gap:14px}
+.marca img{height:52px;width:auto}
+.marca h1{font-family:'Spectral',serif;font-weight:600;font-size:22px;letter-spacing:4px;color:#d9d9dc}
+.marca small{display:block;font-family:'Archivo';font-weight:400;font-size:11px;opacity:.65;letter-spacing:2.5px;text-transform:uppercase;margin-top:2px}
+.abas{display:flex;gap:6px;margin-top:12px}
+.aba{background:transparent;border:none;color:#c8cdd6;padding:10px 18px;font-size:13.5px;font-weight:600;border-radius:8px 8px 0 0;letter-spacing:.3px}
+.aba.ativa{background:var(--papel);color:var(--navy)}
+.aba .cont{background:var(--oxblood);color:#fff;border-radius:99px;padding:1px 7px;font-size:11px;margin-left:6px}
+
+main{padding:18px 26px;max-width:1600px;margin:0 auto}
+.painel{display:none}
+.painel.ativo{display:block}
+
+/* ===== barra de ações ===== */
+.barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.btn{border:none;border-radius:7px;padding:9px 15px;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.btn-principal{background:var(--oxblood);color:#fff}
+.btn-principal:hover{background:var(--oxblood-claro)}
+.btn-borda{background:var(--branco);border:1px solid var(--linha);color:var(--tinta)}
+.btn-borda:hover{border-color:var(--oxblood);color:var(--oxblood)}
+.btn-mini{padding:4px 9px;font-size:12px;border-radius:5px}
+.btn-perigo{background:var(--branco);border:1px solid var(--vermelho-bd);color:var(--vermelho-tx)}
+.barra .direita{margin-left:auto;display:flex;gap:8px;align-items:center;color:var(--cinza);font-size:12.5px}
+.fechados-badge{background:var(--verde-bg);color:var(--verde-tx);border:1px solid var(--verde-bd);border-radius:99px;padding:7px 14px;font-size:12px;font-weight:700;letter-spacing:.4px}
+.badge-amarelo{background:var(--amarelo-bg);color:var(--amarelo-tx);border-color:var(--amarelo-bd)}
+.badge-vermelho{background:var(--vermelho-bg);color:var(--vermelho-tx);border-color:var(--vermelho-bd)}
+.badge-neutro{background:var(--navy);color:#e8e4da;border-color:var(--navy)}
+.periodo-box{display:inline-flex;align-items:center;gap:6px;background:var(--branco);border:1px solid var(--linha);border-radius:7px;padding:4px 8px}
+.periodo-box label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza)}
+.periodo-box input{border:none;padding:4px 2px;font-size:13px}
+.sub-abas{display:flex;gap:0;border:1px solid var(--linha);border-radius:7px;overflow:hidden;margin-left:6px}
+.sub-aba{background:var(--branco);border:none;padding:8px 16px;font-size:12.5px;font-weight:600;color:var(--cinza)}
+.sub-aba.ativa{background:var(--navy);color:#fff}
+
+
+/* ===== tabela ===== */
+.tabela-wrap{background:var(--branco);border:1px solid var(--linha);border-radius:10px;overflow:auto;max-height:calc(100vh - 245px)}
+table{border-collapse:collapse;width:100%;min-width:1250px}
+thead th{position:sticky;top:0;background:var(--navy);color:#e8e4da;font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;padding:9px 10px;text-align:left;white-space:nowrap;z-index:2}
+thead tr.filtros th{top:0;background:#2a3b55;padding:5px 6px}
+thead tr.nomes th{top:38px}
+table.t-alto thead tr.nomes th{top:72px}
+.agenda-grade{width:100%;table-layout:fixed;border-collapse:collapse;user-select:none}
+.ag-sel{outline:2px solid var(--oxblood);outline-offset:-2px;filter:brightness(.92)}
+.agenda-grade th.dia-click,.agenda-grade td.hora{cursor:pointer}
+.agenda-grade th.dia-click:hover,.agenda-grade td.hora:hover{filter:brightness(1.25)}
+.agenda-grade th{position:sticky;top:0;padding:3px 4px;font-size:10.5px}
+.agenda-grade th:first-child{width:52px}
+.agenda-grade td{border:1px solid var(--linha);padding:0;height:calc((100vh - 248px)/21);min-height:18px;text-align:center;font-size:11px;overflow:hidden}
+.agenda-grade td.hora{background:var(--navy);color:#e8e4da;font-weight:600;font-size:10.5px}
+.ag-cel{cursor:pointer;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.ag-livre{background:var(--verde-bg);color:var(--verde-tx);font-weight:700;font-size:10.5px}
+.ag-ocupado{background:var(--azul-bg);color:var(--azul-tx);font-weight:600;cursor:default;flex-direction:column;line-height:1.1;padding:0 2px;white-space:nowrap}
+.ag-ocupado b{max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10.5px}
+.ag-ocupado small{font-weight:400;font-size:9.5px;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+thead tr.filtros input,thead tr.filtros select{width:100%;min-width:70px;font-size:12px;padding:5px 7px;border-radius:5px;border:none}
+.th-de-ate input{display:block;min-width:118px;margin:0 0 3px}
+.th-de-ate input:last-child{margin-bottom:0}
+tbody td{padding:8px 10px;border-top:1px solid var(--linha);font-size:13px;vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover td{filter:brightness(.96)}
+td.acao{white-space:nowrap}
+.st-verde td{background:var(--verde-bg);color:var(--verde-tx)}
+.st-amarelo td{background:var(--amarelo-bg);color:var(--amarelo-tx)}
+.st-vermelho td{background:var(--vermelho-bg);color:var(--vermelho-tx)}
+.st-azul td{background:var(--azul-bg);color:var(--azul-tx)}
+.st-cinza td{background:var(--cinza-bg);color:var(--cinza-tx)}
+.pill{display:inline-block;padding:3px 10px;border-radius:99px;font-size:11.5px;font-weight:700;white-space:nowrap;border:1px solid transparent}
+.pill.verde{background:#fff;color:var(--verde-tx);border-color:var(--verde-bd)}
+.pill.amarelo{background:#fff;color:var(--amarelo-tx);border-color:var(--amarelo-bd)}
+.pill.vermelho{background:#fff;color:var(--vermelho-tx);border-color:var(--vermelho-bd)}
+.pill.azul{background:#fff;color:var(--azul-tx);border-color:var(--azul-bd)}
+.pill.cinza{background:#fff;color:var(--cinza-tx);border-color:var(--cinza-bd)}
+.docs-chip{font-size:11.5px;background:#fff;border:1px solid var(--linha);border-radius:99px;padding:2px 8px;color:var(--cinza)}
+.vazio{padding:40px;text-align:center;color:var(--cinza)}
+
+/* ===== modal ===== */
+.modal-fundo{display:none;position:fixed;inset:0;background:rgba(20,25,32,.55);z-index:50;overflow:auto;padding:30px 14px}
+.modal-fundo.aberto{display:flex;align-items:flex-start;justify-content:center}
+.modal{background:var(--branco);border-radius:12px;width:100%;max-width:860px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-topo{padding:16px 22px;border-bottom:1px solid var(--linha);display:flex;justify-content:space-between;align-items:center}
+.modal-topo h2{font-family:'Spectral',serif;font-size:18px;color:var(--navy)}
+.fechar{background:none;border:none;font-size:22px;color:var(--cinza);line-height:1}
+.modal-corpo{padding:20px 22px}
+.grade{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.campo{display:flex;flex-direction:column;gap:4px}
+.campo label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza)}
+.campo.c2{grid-column:span 2}.campo.c4{grid-column:span 4}
+.campo-cond{background:#f4f6f8;border:1px dashed var(--linha);border-radius:8px;padding:10px 12px;grid-column:span 4;display:none}
+.campo-cond.visivel{display:flex}
+.modal-rodape{padding:14px 22px;border-top:1px solid var(--linha);display:flex;justify-content:flex-end;gap:8px}
+
+/* ===== documentos ===== */
+.docs-secao{margin-top:22px;border-top:2px solid var(--navy);padding-top:14px}
+.docs-secao h3{font-family:'Spectral',serif;font-size:15px;color:var(--navy);margin-bottom:4px}
+.docs-grupo-titulo{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--oxblood);margin:14px 0 6px;text-transform:uppercase}
+.doc-linha{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid var(--linha);border-radius:8px;margin-bottom:6px;background:#fbfcfd}
+.doc-linha .titulo{flex:0 0 300px;font-size:12.5px;font-weight:600;padding-top:5px}
+.doc-linha .arquivos{flex:1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.doc-arquivo{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--linha);border-radius:6px;padding:3px 8px;font-size:12px}
+.doc-arquivo a{color:var(--navy);text-decoration:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-arquivo button{background:none;border:none;color:var(--vermelho-tx);font-size:14px;padding:0 2px}
+.doc-add{position:relative;overflow:hidden}
+.doc-add input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* ===== importação ===== */
+.imp-passos{color:var(--cinza);font-size:12.5px;margin-bottom:10px}
+.mapa-grade{display:flex;gap:8px;overflow:auto;padding-bottom:6px}
+.mapa-col{min-width:150px;border:1px solid var(--linha);border-radius:8px;background:#fbfcfd}
+.mapa-col select{width:100%;border:none;border-bottom:1px solid var(--linha);border-radius:8px 8px 0 0;background:#f1f3f5;font-weight:600}
+.mapa-col .amostra{padding:6px 8px;font-size:12px;border-top:1px solid #eceff1;max-height:34px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+/* ===== abertura de pasta ===== */
+.ap-input{width:130px}
+.ap-falta{width:100%;margin-top:5px;display:none}
+.ap-falta.visivel{display:block}
+
+/* ===== login ===== */
+#telaLogin{position:fixed;inset:0;background:var(--navy);z-index:200;display:flex;align-items:center;justify-content:center}
+.login-caixa{text-align:center;padding:20px;width:100%;max-width:360px}
+.login-caixa img{height:110px;margin-bottom:14px}
+.login-caixa h1{font-family:'Spectral',serif;font-weight:600;font-size:26px;letter-spacing:6px;color:#d9d9dc;margin-bottom:4px}
+.login-caixa .sub{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#8a93a5;margin-bottom:28px}
+.login-caixa input{width:100%;text-align:center;font-size:16px;padding:12px;border-radius:8px;border:1px solid #3a4a63;background:#12203a;color:#fff;letter-spacing:2px}
+.login-caixa input::placeholder{letter-spacing:1px;font-size:13px;color:#7c869a}
+.login-caixa button{width:100%;margin-top:12px;padding:12px;font-size:14px}
+.login-erro{color:#f3a6a6;font-size:12.5px;margin-top:10px;min-height:16px}
+
+/* ===== usuários / topo direito ===== */
+.topo-dir{position:absolute;top:14px;right:26px;display:flex;flex-direction:column;gap:7px;align-items:flex-end;font-size:12px;color:#aeb6c4}
+.topo-dir-linha{display:flex;gap:8px;align-items:center}
+.passivo-badge{background:var(--oxblood);color:#fff;border-radius:99px;padding:5px 14px;font-size:12px;font-weight:700;letter-spacing:.6px}
+.btn-topo{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#e3e6ec;border-radius:7px;padding:6px 11px;font-size:12px;font-weight:600}
+.btn-topo:hover{background:rgba(255,255,255,.16)}
+.usu-linha{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border:1px solid var(--linha);border-radius:8px;padding:9px 11px;margin-bottom:7px;background:#fbfcfd}
+.usu-linha input[type=text]{width:170px}
+.usu-linha .abas-check{display:flex;gap:12px;font-size:12.5px;align-items:center}
+.usu-linha .abas-check label{display:flex;gap:4px;align-items:center;cursor:pointer;font-weight:500}
+
+/* ===== toast / loading ===== */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:11px 20px;border-radius:8px;font-size:13.5px;display:none;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+#carregando{position:fixed;inset:0;background:rgba(255,255,255,.7);display:none;align-items:center;justify-content:center;z-index:98;flex-direction:column;gap:12px}
+#carregando .disco{width:38px;height:38px;border:4px solid var(--linha);border-top-color:var(--oxblood);border-radius:50%;animation:gira .8s linear infinite}
+#carregando span{font-weight:600;color:var(--navy)}
+@keyframes gira{to{transform:rotate(360deg)}}
+@media (max-width:800px){.grade{grid-template-columns:1fr 1fr}.campo.c2,.campo.c4{grid-column:span 2}.doc-linha{flex-direction:column}.doc-linha .titulo{flex:auto}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topo-dir">
+    <div class="topo-dir-linha">
+      <span id="usuLogado"></span>
+      <button class="btn-topo" id="btnUsuarios" style="display:none" onclick="abrirUsuarios()" title="Adicionar usuários e senhas">&#128101; Usuários</button>
+      <button class="btn-topo" onclick="sair()">Sair</button>
+    </div>
+    <div class="passivo-badge" id="badgePassivo" title="Pastas não abertas + iniciais não elaboradas + iniciais não ajuizadas">PASSIVO: 0</div>
+  </div>
+  <div class="marca">
+    <img src="data:image/png;base64,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" alt="Karla Nemes">
+    <div>
+      <h1>KARLA NEMES</h1>
+      <small>Sistema de Atendimentos</small>
+    </div>
+  </div>
+  <div class="abas">
+    <button class="aba" data-aba="lead" onclick="trocarAba('lead')">Lead <span class="cont" id="contLead">0</span></button>
+    <button class="aba" data-aba="agendamentos" onclick="trocarAba('agendamentos')">Agendamentos <span class="cont" id="contAgend">0</span></button>
+    <button class="aba" data-aba="agenda" onclick="trocarAba('agenda')">Agenda</button>
+    <button class="aba ativa" data-aba="atendimentos" onclick="trocarAba('atendimentos')">Atendimentos <span class="cont" id="contAtend">0</span></button>
+    <button class="aba" data-aba="abertura" onclick="trocarAba('abertura')">Abertura de Pasta <span class="cont" id="contAbertura">0</span></button>
+    <button class="aba" data-aba="conferencia" onclick="trocarAba('conferencia')">Conferência <span class="cont" id="contConf">0</span></button>
+    <button class="aba" data-aba="iniciais" onclick="trocarAba('iniciais')">Iniciais para elaborar <span class="cont" id="contIniciais">0</span></button>
+    <button class="aba" data-aba="ajuizamento" onclick="trocarAba('ajuizamento')">Ajuizamento <span class="cont" id="contAjuiz">0</span></button>
+  </div>
+</header>
+
+<main>
+<!-- ================= ABA: LEAD ================= -->
+<section class="painel" id="painel-lead">
+  <div class="barra">
+    <button class="btn btn-principal" onclick="abrirNovoLead()" id="btnNovoLead">+ Novo lead</button>
+    <span class="periodo-box" id="boxAtribuir">
+      <label for="leadAtendente">Info:</label>
+      <input id="leadAtendente" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO" style="width:170px;border:1px solid var(--linha)">
+      <button class="btn btn-mini btn-principal" onclick="atribuirLeadsSel()" id="btnAtribuir">Atribuir aos selecionados (0)</button>
+      <button class="btn btn-mini btn-borda" onclick="abrirEditarLote()">Editar selecionados</button>
+      <button class="btn btn-mini btn-perigo" onclick="excluirLeadsSel()">Excluir selecionados</button>
+    </span>
+    <span style="color:var(--cinza);font-size:12px" id="dicaEstagiario">Info <b>ESTAGIÁRIO</b> = envio automático de até <b>15 leads/dia por estagiário</b> na aba Atendimentos, de <b>segunda a sexta</b>, sem duplicidade (cada lead vai 1 única vez)</span>
+    <datalist id="dlInfo"><option value="ROBO"><option value="ESTAGIÁRIO"></datalist>
+    <div class="direita" style="align-items:flex-end">
+      <span style="display:flex;flex-direction:column;gap:4px;align-items:stretch">
+        <button class="btn btn-mini btn-borda doc-add" style="position:relative" id="btnImportLead">
+          &#128229; Importar planilha <input type="file" accept=".xlsx,.xls,.csv" onchange="importarLeads(this)">
+        </button>
+        <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
+      </span>
+    </div>
+  </div>
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr class="filtros">
+          <th style="width:34px"></th>
+          <th><input data-fl="DATA" placeholder="Filtrar"></th>
+          <th><input data-fl="NOME" placeholder="Filtrar"></th>
+          <th><input data-fl="TELEFONE" placeholder="Filtrar"></th>
+          <th><input data-fl="EMPRESA" placeholder="Filtrar"></th>
+          <th><select id="fLeadAtend"><option value="">Todos</option><option value="__SEM__">(sem info)</option></select></th>
+          <th><button class="btn btn-mini btn-borda" onclick="limparFiltrosLead()" title="Limpar filtros">&#10005;</button></th>
+        </tr>
+        <tr class="nomes">
+          <th style="width:34px"><input type="checkbox" id="leadSelTodos" onchange="selTodosLeads(this.checked)" title="Selecionar todos os visíveis"></th>
+          <th>Data</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Info</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoLead"></tbody>
+    </table>
+    <div class="vazio" id="vazioLead" style="display:none">Nenhum lead. Importe a planilha ou crie manualmente.</div>
+  </div>
+</section>
+
+<!-- ================= MODAL NOVO/EDITAR LEAD ================= -->
+<div class="modal-fundo" id="mLead">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-topo">
+      <h2 id="leadTitulo">Novo lead</h2>
+      <button class="fechar" onclick="fecharModal('mLead')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="grade" style="grid-template-columns:1fr 1fr">
+        <div class="campo c2"><label>Nome</label><input id="ld_NOME"></div>
+        <div class="campo"><label>Telefone</label><input id="ld_TELEFONE"></div>
+        <div class="campo"><label>Data</label><input type="date" id="ld_DATA"></div>
+        <div class="campo c2"><label>Empresa</label><input id="ld_EMPRESA"></div>
+        <div class="campo c2"><label>Info</label><input id="ld_ATENDENTE" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO (opcional)"></div>
+        <div class="campo c2"><label>Enviar para o estagiário</label><input id="ld_ESTAG" list="dlEstagiarios" placeholder="Nome do estagiário (opcional — tem prioridade sobre a Info)"></div>
+      </div>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn btn-borda" onclick="fecharModal('mLead')">Cancelar</button>
+      <button class="btn btn-principal" onclick="salvarLead()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL EDITAR ATENDIMENTOS EM LOTE ================= -->
+<div class="modal-fundo" id="mAtendLote">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-topo">
+      <h2 id="atLoteTitulo">Editar selecionados</h2>
+      <button class="fechar" onclick="fecharModal('mAtendLote')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px">
+        Os campos preenchidos abaixo serão aplicados a <b>todos os atendimentos selecionados</b>. Campos em branco não são alterados.
+      </div>
+      <div class="grade" style="grid-template-columns:1fr 1fr">
+        <div class="campo"><label>Data</label><input type="date" id="atl_DATA"></div>
+        <div class="campo"><label>Status</label><select id="atl_STATUS"><option value=""></option></select></div>
+        <div class="campo"><label>Responsável</label><input id="atl_RESPONSAVEL"></div>
+        <div class="campo"><label>Adv. atendimento</label><input id="atl_ADV"></div>
+        <div class="campo c2"><label>Empresa</label><input id="atl_EMPRESA"></div>
+      </div>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn btn-borda" onclick="fecharModal('mAtendLote')">Cancelar</button>
+      <button class="btn btn-principal" onclick="salvarAtendLote()">Aplicar aos selecionados</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL EDITAR LEADS EM LOTE ================= -->
+<div class="modal-fundo" id="mLeadLote">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-topo">
+      <h2 id="loteTitulo">Editar selecionados</h2>
+      <button class="fechar" onclick="fecharModal('mLeadLote')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px">
+        Os campos preenchidos abaixo serão aplicados a <b>todos os leads selecionados</b>. Campos em branco não são alterados.
+      </div>
+      <div class="grade" style="grid-template-columns:1fr 1fr">
+        <div class="campo"><label>Data</label><input type="date" id="lote_DATA"></div>
+        <div class="campo"><label>Info</label><input id="lote_INFO" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO"></div>
+        <div class="campo c2"><label>Empresa</label><input id="lote_EMPRESA"></div>
+        <div class="campo c2"><label>Enviar para o estagiário</label><input id="lote_ESTAG" list="dlEstagiarios" placeholder="Nome do estagiário (opcional — tem prioridade sobre a Info)"></div>
+      </div>
+      <datalist id="dlEstagiarios"></datalist>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn btn-borda" onclick="fecharModal('mLeadLote')">Cancelar</button>
+      <button class="btn btn-principal" onclick="salvarEditarLote()">Aplicar aos selecionados</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ABA 0: AGENDAMENTOS ================= -->
+<section class="painel" id="painel-agendamentos">
+  <div class="barra">
+    <button class="btn btn-principal" onclick="abrirNovoAgendamento()">+ Novo agendamento</button>
+    <span class="periodo-box">
+      <label for="filtroMesAg">Período:</label>
+      <input type="month" id="filtroMesAg" title="Filtra pelo mês/ano em que os nomes foram importados ou criados">
+      <button class="btn btn-mini btn-borda" onclick="$('filtroMesAg').value='';renderAgendamentos()" title="Ver todos os meses">Todos</button>
+    </span>
+    <span style="color:var(--cinza);font-size:12px">Lista: cria registros · Resultados: só preenche o status dos nomes já importados</span>
+    <div class="direita" style="align-items:flex-end">
+      <span style="display:flex;flex-direction:column;gap:4px;align-items:stretch">
+        <button class="btn btn-mini btn-borda doc-add" style="position:relative">
+          &#128229; Importar lista <input type="file" accept=".xlsx,.xls,.csv,.pdf" onchange="importarAgArquivo(this,'lista')">
+        </button>
+        <button class="btn btn-mini btn-borda doc-add" style="position:relative">
+          &#128229; Importar resultados <input type="file" accept=".xlsx,.xls,.csv,.pdf" onchange="importarAgArquivo(this,'resultados')">
+        </button>
+        <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
+      </span>
+    </div>
+  </div>
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr class="filtros">
+          <th><input data-fg="__DATA__" placeholder="mm/aaaa"></th>
+          <th><input data-fg="NOME" placeholder="Filtrar"></th>
+          <th><input data-fg="TELEFONE" placeholder="Filtrar"></th>
+          <th><input data-fg="EMPRESA" placeholder="Filtrar"></th>
+          <th><select id="fAgStatus"><option value="">Todos</option></select></th>
+          <th></th><th></th>
+          <th><button class="btn btn-mini btn-borda" onclick="limparFiltrosAg()" title="Limpar filtros">&#10005;</button></th>
+        </tr>
+        <tr class="nomes">
+          <th>Data</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Status</th>
+          <th>Data / horário do agendamento</th><th>Advogado</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoAgend"></tbody>
+    </table>
+    <div class="vazio" id="vazioAgend" style="display:none">Nenhum registro. Use IMPORTAR LISTA ou IMPORTAR RESULTADOS.</div>
+  </div>
+</section>
+
+<!-- ================= ABA 0b: AGENDA ================= -->
+<section class="painel" id="painel-agenda">
+  <div class="barra">
+    <span class="periodo-box" id="agAdvBox" style="display:none">
+      <label for="agAdvSel">Agenda de:</label>
+      <select id="agAdvSel" onchange="renderAgenda()"></select>
+      <input type="text" id="novoAdvNome" placeholder="Nome do advogado" style="width:150px">
+      <button class="btn btn-mini btn-principal" onclick="adicionarAdvogadoAg()" title="Criar a agenda deste advogado">+ Adicionar</button>
+      <button class="btn btn-mini btn-perigo" onclick="excluirAdvogadoAg()" title="Excluir o advogado selecionado e sua agenda">Excluir</button>
+    </span>
+    <div class="sub-abas">
+      <button class="sub-aba" onclick="mudarSemana(-1)">&#8249; Semana anterior</button>
+      <button class="sub-aba ativa" id="agSemanaLabel" style="cursor:default"></button>
+      <button class="sub-aba" onclick="mudarSemana(1)">Próxima semana &#8250;</button>
+    </div>
+    <button class="btn btn-mini btn-borda" onclick="marcarSemana(true)" title="Deixar todos os horários da semana disponíveis">Semana inteira disponível</button>
+    <button class="btn btn-mini btn-borda" onclick="marcarSemana(false)" title="Remover toda a disponibilidade da semana">Limpar semana</button>
+    <div class="direita">
+      <span style="font-size:12px">Arraste sobre os horários para marcar vários de uma vez · clique no dia ou na hora para marcar a linha/coluna toda</span>
+      <button class="btn btn-mini btn-borda" onclick="carregarAgenda()">&#8635; Atualizar</button>
+    </div>
+  </div>
+  <div class="tabela-wrap" style="max-height:none;overflow:hidden">
+    <table class="agenda-grade" id="tabAgenda"></table>
+  </div>
+</section>
+
+<!-- ================= ABA 1: ATENDIMENTOS ================= -->
+<section class="painel ativo" id="painel-atendimentos">
+  <div class="barra">
+    <button class="btn btn-principal" onclick="abrirFicha()">+ Novo atendimento</button>
+    <button class="btn btn-mini btn-borda" onclick="abrirEditarAtendLote()" id="btnAtendLote">Editar selecionados (0)</button>
+    <button class="btn btn-mini btn-perigo" onclick="excluirAtendSel()">Excluir selecionados</button>
+    <span class="fechados-badge" id="badgeFechados" title="Atualiza conforme os filtros aplicados">CLIENTES FECHADOS: 0</span>
+    <span class="periodo-box">
+      <label for="filtroMes">Período:</label>
+      <input type="month" id="filtroMes" title="Filtra os atendimentos pelo mês da data">
+      <button class="btn btn-mini btn-borda" onclick="$('filtroMes').value='';renderizar()" title="Ver todos os meses">Todos</button>
+    </span>
+    <div class="direita">
+      <span id="resumoFiltro"></span>
+      <span class="master-so" style="display:none">
+        <button class="btn btn-mini btn-borda" onclick="exportarExcel('atendimentos')" title="Exportar os dados filtrados em Excel">&#11015; Excel</button>
+        <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('atendimentos')" title="Exportar os dados filtrados em PDF">&#11015; PDF</button>
+      </span>
+      <button class="btn btn-mini btn-borda doc-add" style="position:relative">
+        Importar Excel/CSV <input type="file" accept=".xlsx,.xls,.csv" onchange="importarExcel(this)">
+      </button>
+      <button class="btn btn-mini btn-borda doc-add" style="position:relative">
+        Importar PDF <input type="file" accept=".pdf" onchange="importarPdf(this)">
+      </button>
+      <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
+    </div>
+  </div>
+
+  <div class="tabela-wrap">
+    <table id="tabAtend" class="t-alto">
+      <thead>
+        <tr class="filtros">
+          <th style="width:34px"></th>
+          <th class="th-de-ate">
+            <input type="date" id="fDataDe" title="De (data inicial)">
+            <input type="date" id="fDataAte" title="Até (data final)">
+          </th>
+          <th><input data-f="HORARIO" placeholder="Filtrar"></th>
+          <th><input data-f="NOME" placeholder="Filtrar"></th>
+          <th><input data-f="TELEFONE" placeholder="Filtrar"></th>
+          <th><input data-f="EMPRESA" placeholder="Filtrar"></th>
+          <th><input data-f="RESPONSAVEL" placeholder="Filtrar"></th>
+          <th><input data-f="PASTA" placeholder="Filtrar"></th>
+          <th><input data-f="ADV_ATENDIMENTO" placeholder="Filtrar"></th>
+          <th><input data-f="DATA_SAIDA" placeholder="Filtrar"></th>
+          <th><select data-f="STATUS"><option value="">Todos</option></select></th>
+          <th></th>
+          <th><input data-f="OBSERVACOES" placeholder="Filtrar"></th>
+          <th><button class="btn btn-mini btn-borda" onclick="limparFiltros()" title="Limpar filtros">&#10005;</button></th>
+        </tr>
+        <tr class="nomes">
+          <th style="width:34px"><input type="checkbox" id="atendSelTodos" onclick="event.stopPropagation()" onchange="selTodosAtend(this.checked)" title="Selecionar todos os visíveis"></th>
+          <th>Data</th><th>Horário</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th>
+          <th>Pasta</th><th>Adv. Atendimento</th><th>Data Saída</th><th>Status</th>
+          <th>Docs</th><th>Observações</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="corpoAtend"></tbody>
+    </table>
+    <div class="vazio" id="vazioAtend" style="display:none">Nenhum atendimento. Clique em “+ Novo atendimento” ou importe uma planilha.</div>
+  </div>
+</section>
+
+<!-- ================= ABA 2: ABERTURA DE PASTA ================= -->
+<section class="painel" id="painel-abertura">
+  <div class="barra">
+    <span class="fechados-badge" id="badgeAbertas">PASTAS ABERTAS: 0</span>
+    <span class="fechados-badge badge-amarelo" id="badgeNaoAbertas">PASTAS NÃO ABERTAS: 0</span>
+    <div class="sub-abas">
+      <button class="sub-aba ativa" id="subPendentes" onclick="trocarSubAba('pendentes')">Em aberto</button>
+      <button class="sub-aba" id="subHistorico" onclick="trocarSubAba('historico')">Pastas abertas</button>
+    </div>
+    <span class="periodo-box">
+      <label for="filtroMesAp">Período:</label>
+      <input type="month" id="filtroMesAp" title="Em aberto: filtra pelo mês do recebimento · Pastas abertas: pelo mês da abertura">
+      <button class="btn btn-mini btn-borda" onclick="$('filtroMesAp').value='';renderizar()" title="Ver todos os meses">Todos</button>
+    </span>
+    <div class="direita">
+      <span style="font-size:12px">FECHOU entra aqui automaticamente · nº da pasta + documentação OK vai para Pastas abertas</span>
+      <span class="master-so" style="display:none">
+        <button class="btn btn-mini btn-borda" onclick="exportarExcel('abertura')" title="Exportar a lista visível em Excel">&#11015; Excel</button>
+        <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('abertura')" title="Exportar a lista visível em PDF">&#11015; PDF</button>
+      </span>
+      <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
+    </div>
+  </div>
+
+  <!-- pendentes de abertura -->
+  <div class="tabela-wrap" id="wrapPendentes">
+    <table>
+      <thead>
+        <tr class="filtros">
+          <th></th>
+          <th><input data-fa="NOME" placeholder="Filtrar"></th>
+          <th><input data-fa="EMPRESA" placeholder="Filtrar"></th>
+          <th><input data-fa="TELEFONE" placeholder="Filtrar"></th>
+          <th></th>
+          <th><select data-fa="DOC_SITUACAO">
+            <option value="">Todas</option>
+            <option value="DOCUMENTAÇÃO OK">DOCUMENTAÇÃO OK</option>
+            <option value="FALTANDO DOCUMENTAÇÃO">FALTANDO DOCUMENTAÇÃO</option>
+          </select></th>
+          <th><button class="btn btn-mini btn-borda" onclick="limparFiltrosAp()" title="Limpar filtros">&#10005;</button></th>
+        </tr>
+        <tr class="nomes">
+          <th>Data recebido</th><th>Reclamante</th><th>Reclamado</th><th>Telefone</th>
+          <th>Nº Pasta CPJ</th><th>Documentação</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoAbertura"></tbody>
+    </table>
+    <div class="vazio" id="vazioAbertura" style="display:none">Nenhuma pasta pendente de abertura.</div>
+  </div>
+
+  <!-- pastas abertas -->
+  <div class="tabela-wrap" id="wrapHistorico" style="display:none">
+    <table class="t-alto">
+      <thead>
+        <tr class="filtros">
+          <th class="th-de-ate">
+            <input type="date" id="fHistDe" title="De (data inicial)">
+            <input type="date" id="fHistAte" title="Até (data final)">
+          </th>
+          <th><input data-fh="NOME" placeholder="Filtrar"></th>
+          <th><input data-fh="EMPRESA" placeholder="Filtrar"></th>
+          <th></th>
+          <th><input data-fh="PASTA_CPJ" placeholder="Filtrar nº pasta"></th>
+          <th><button class="btn btn-mini btn-borda" onclick="limparFiltrosHist()" title="Limpar filtros">&#10005;</button></th>
+        </tr>
+        <tr class="nomes">
+          <th>Data abertura</th><th>Reclamante</th><th>Reclamado</th><th>Telefone</th><th>Nº Pasta CPJ</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoHistorico"></tbody>
+    </table>
+    <div class="vazio" id="vazioHistorico" style="display:none">Nenhuma pasta aberta ainda.</div>
+  </div>
+</section>
+
+<!-- ================= ABA: CONFERÊNCIA ================= -->
+<section class="painel" id="painel-conferencia">
+  <div class="barra">
+    <span style="color:var(--cinza);font-size:13px">Toda pasta aberta entra aqui para conferência · <b style="color:var(--vermelho-tx)">PENDÊNCIA DE DOCUMENTOS</b> devolve a pasta para Atendimentos como PENDENTE DE DOCUMENTO.</span>
+    <div class="direita"><button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button></div>
+  </div>
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr class="filtros">
+          <th></th>
+          <th><input data-fc="NOME" placeholder="Filtrar"></th>
+          <th><input data-fc="EMPRESA" placeholder="Filtrar"></th>
+          <th></th>
+          <th><input data-fc="PASTA_CPJ" placeholder="Filtrar"></th>
+          <th></th>
+          <th><select id="fConfStatus">
+            <option value="">Todos</option>
+            <option value="__SEM__">(não conferido)</option>
+            <option value="DOCUMENTAÇÃO OK">DOCUMENTAÇÃO OK</option>
+            <option value="PENDÊNCIA DE DOCUMENTOS">PENDÊNCIA DE DOCUMENTOS</option>
+          </select></th>
+          <th><button class="btn btn-mini btn-borda" onclick="limparFiltrosConf()" title="Limpar filtros">&#10005;</button></th>
+        </tr>
+        <tr class="nomes">
+          <th>Data abertura</th><th>Reclamante</th><th>Reclamado</th><th>Telefone</th>
+          <th>Nº Pasta CPJ</th><th>Docs</th><th>Status</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoConf"></tbody>
+    </table>
+    <div class="vazio" id="vazioConf" style="display:none">Nenhuma pasta aberta para conferir.</div>
+  </div>
+</section>
+
+<!-- ================= ABA 3: INICIAIS PARA ELABORAR ================= -->
+<section class="painel" id="painel-iniciais">
+  <div class="barra">
+    <span class="fechados-badge badge-neutro" id="badgeIniFazer">INICIAIS PARA FAZER: 0</span>
+    <span class="fechados-badge badge-vermelho" id="badgeIniPend">PENDENTES: 0</span>
+    <span class="fechados-badge" id="badgeIniFeitos">FEITOS: 0</span>
+    <span class="periodo-box">
+      <label for="filtroMesIni">Período:</label>
+      <input type="month" id="filtroMesIni" title="Filtra pelo mês da abertura da pasta">
+      <button class="btn btn-mini btn-borda" onclick="$('filtroMesIni').value='';renderizar()" title="Ver todos os meses">Todos</button>
+    </span>
+    <div class="direita">
+      <span style="font-size:12px">Pastas abertas entram aqui automaticamente como PENDENTE</span>
+      <span class="master-so" style="display:none">
+        <button class="btn btn-mini btn-borda" onclick="exportarExcel('iniciais')" title="Exportar os dados filtrados em Excel">&#11015; Excel</button>
+        <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('iniciais')" title="Exportar os dados filtrados em PDF">&#11015; PDF</button>
+      </span>
+      <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
+    </div>
+  </div>
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr class="filtros">
+          <th></th>
+          <th><input data-fi="NOME" placeholder="Filtrar"></th>
+          <th><input data-fi="EMPRESA" placeholder="Filtrar"></th>
+          <th><input data-fi="PASTA_CPJ" placeholder="Filtrar"></th>
+          <th><input type="date" id="fIniData" title="Filtrar pela data de saída"></th>
+          <th><input data-fi="INICIAL_RESP" placeholder="Filtrar"></th>
+          <th><input data-fi="INICIAL_OBS" placeholder="Filtrar"></th>
+          <th><select id="fIniStatus">
+            <option value="">Todos</option>
+            <option value="PENDENTE">PENDENTE</option>
+            <option value="FEITO">FEITO</option>
+          </select></th>
+          <th><button class="btn btn-mini btn-borda" onclick="limparFiltrosIni()" title="Limpar filtros">&#10005;</button></th>
+        </tr>
+        <tr class="nomes">
+          <th>Data recebido</th>
+          <th>Reclamante</th><th>Reclamado</th><th>Nº Pasta</th><th>Data saída</th>
+          <th style="min-width:180px">Responsável pela inicial</th>
+          <th style="min-width:240px">Observação</th><th>Status</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoIniciais"></tbody>
+    </table>
+    <div class="vazio" id="vazioIniciais" style="display:none">Nenhuma inicial para elaborar ainda.</div>
+  </div>
+</section>
+
+<!-- ================= ABA 4: AJUIZAMENTO ================= -->
+<section class="painel" id="painel-ajuizamento">
+  <div class="barra">
+    <span class="fechados-badge" id="badgeAjuizados">AJUIZADOS: 0</span>
+    <span class="fechados-badge badge-vermelho" id="badgeNaoAjuizados">NÃO AJUIZADOS: 0</span>
+    <span class="periodo-box">
+      <label for="filtroMesAj">Período:</label>
+      <input type="month" id="filtroMesAj" title="Filtra pelo mês em que a inicial foi feita (Data recebido)">
+      <button class="btn btn-mini btn-borda" onclick="$('filtroMesAj').value='';renderizar()" title="Ver todos os meses">Todos</button>
+    </span>
+    <div class="direita">
+      <span style="font-size:12px">Iniciais com status FEITO entram aqui automaticamente como NÃO AJUIZADO</span>
+      <span class="master-so" style="display:none">
+        <button class="btn btn-mini btn-borda" onclick="exportarExcel('ajuizamento')" title="Exportar os dados filtrados em Excel">&#11015; Excel</button>
+        <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('ajuizamento')" title="Exportar os dados filtrados em PDF">&#11015; PDF</button>
+      </span>
+      <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
+    </div>
+  </div>
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr class="filtros">
+          <th></th>
+          <th><input data-fj="NOME" placeholder="Filtrar"></th>
+          <th><input data-fj="EMPRESA" placeholder="Filtrar"></th>
+          <th><input data-fj="PASTA_CPJ" placeholder="Filtrar"></th>
+          <th><input type="date" id="fAjSaida" title="Filtrar pela data de saída"></th>
+          <th><input type="date" id="fAjData" title="Filtrar pela data do ajuizamento"></th>
+          <th><select id="fAjStatus">
+            <option value="">Todos</option>
+            <option value="NAO AJUIZADO">NÃO AJUIZADO</option>
+            <option value="AJUIZADO">AJUIZADO</option>
+          </select></th>
+          <th><button class="btn btn-mini btn-borda" onclick="limparFiltrosAj()" title="Limpar filtros">&#10005;</button></th>
+        </tr>
+        <tr class="nomes">
+          <th>Data recebido</th>
+          <th>Reclamante</th><th>Reclamado</th><th>Nº Pasta</th><th>Data saída</th>
+          <th>Data do ajuizamento</th><th>Status</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="corpoAjuiz"></tbody>
+    </table>
+    <div class="vazio" id="vazioAjuiz" style="display:none">Nenhuma inicial feita ainda.</div>
+  </div>
+</section>
+
+</main>
+
+<!-- ================= MODAL FICHA ================= -->
+<div class="modal-fundo" id="mFicha">
+  <div class="modal">
+    <div class="modal-topo">
+      <h2 id="fichaTitulo">Novo atendimento</h2>
+      <button class="fechar" onclick="fecharModal('mFicha')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="grade">
+        <div class="campo"><label>Data</label><input type="date" id="f_DATA"></div>
+        <div class="campo"><label>Horário</label><input type="time" step="1800" id="f_HORARIO"></div>
+        <div class="campo c2"><label>Nome</label><input id="f_NOME"></div>
+        <div class="campo"><label>Telefone</label><input id="f_TELEFONE"></div>
+        <div class="campo c2"><label>Empresa</label><input id="f_EMPRESA"></div>
+        <div class="campo"><label>Responsável</label><input id="f_RESPONSAVEL"></div>
+        <div class="campo"><label>Pasta</label><input id="f_PASTA"></div>
+        <div class="campo"><label>Data saída</label><input type="date" id="f_DATA_SAIDA"></div>
+        <div class="campo c2"><label>Adv. atendimento</label><input id="f_ADV_ATENDIMENTO" placeholder="Automático pela agenda (ou digite)"></div>
+        <div class="campo"><label>Status</label>
+          <select id="f_STATUS" onchange="condicionais()"><option value=""></option></select>
+        </div>
+        <div class="campo c4"><label>Observações</label><textarea id="f_OBSERVACOES" rows="2"></textarea></div>
+
+        <div class="campo c4" id="boxPendConf" style="display:none">
+          <label style="color:var(--vermelho-tx)">Descrição da pendência (Conferência)</label>
+          <textarea id="f_CONF_OBS_VIS" rows="4" readonly style="background:#fdf3f4;border-color:#e4b6bd;color:#6b1f2b;resize:vertical"></textarea>
+        </div>
+
+        <div class="campo-cond campo" id="cond_INDICACAO">
+          <label>Indicação do cliente</label><input id="f_INDICACAO">
+        </div>
+        <div class="campo-cond campo" id="cond_OUTRODIA">
+          <label>Dia / horário remarcado</label><input id="f_RETORNO_DIA_HORARIO" placeholder="Ex.: 20/07 às 14h30">
+        </div>
+      </div>
+
+      <!-- documentos -->
+      <div class="docs-secao" id="secaoDocs">
+        <h3>Documentos</h3>
+        <div id="avisoSalvar" style="font-size:12.5px;color:var(--cinza)">Salve o atendimento para poder anexar documentos.</div>
+        <div id="listaDocs" style="display:none">
+          <div class="docs-grupo-titulo">Obrigatórios</div>
+          <div id="docsObrig"></div>
+          <div class="docs-grupo-titulo">Se você tiver</div>
+          <div id="docsOpc"></div>
+          <div class="docs-grupo-titulo">Outros</div>
+          <div id="docsOutros"></div>
+          <button class="btn btn-mini btn-borda" onclick="adicionarOutroDoc()" title="Anexar um documento com nome personalizado">+ Adicionar mais documentos</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn btn-perigo" id="btnExcluir" style="margin-right:auto;display:none" onclick="excluirRegistro()">Excluir</button>
+      <button class="btn btn-borda" onclick="fecharModal('mFicha')">Cancelar</button>
+      <button class="btn btn-principal" onclick="salvarFicha()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL IMPORTAÇÃO ================= -->
+<div class="modal-fundo" id="mImport">
+  <div class="modal" style="max-width:1100px">
+    <div class="modal-topo">
+      <h2>Importar dados</h2>
+      <button class="fechar" onclick="fecharModal('mImport')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="imp-passos">Confira abaixo como cada coluna do arquivo será importada. Ajuste o destino de cada coluna se necessário e clique em <b>Importar</b>. Colunas marcadas como “— ignorar —” não serão importadas.</div>
+      <div class="mapa-grade" id="mapaGrade"></div>
+      <div style="margin-top:10px;font-size:12.5px;color:var(--cinza)"><span id="impTotal"></span></div>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn btn-borda" onclick="fecharModal('mImport')">Cancelar</button>
+      <button class="btn btn-principal" onclick="confirmarImportacao()">Importar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="carregando"><div class="disco"></div><span id="carregandoTxt">Carregando…</span></div>
+
+<!-- ================= TELA DE LOGIN ================= -->
+<div id="telaLogin">
+  <div class="login-caixa">
+    <img id="loginLogo" alt="Karla Nemes">
+    <h1>KARLA NEMES</h1>
+    <div class="sub">Sistema de Atendimentos</div>
+    <input type="password" id="loginSenha" placeholder="Digite sua senha" onkeydown="if(event.key==='Enter')entrar()">
+    <button class="btn btn-principal" onclick="entrar()">Entrar</button>
+    <div class="login-erro" id="loginErro"></div>
+  </div>
+</div>
+
+<!-- ================= MODAL NOVO AGENDAMENTO ================= -->
+<div class="modal-fundo" id="mAgNovo">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-topo">
+      <h2 id="agNovoTitulo">Novo agendamento</h2>
+      <button class="fechar" onclick="fecharModal('mAgNovo')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="grade" style="grid-template-columns:1fr 1fr">
+        <div class="campo c2" style="position:relative">
+          <label>Buscar na aba Lead</label>
+          <input id="agN_BUSCA" placeholder="Digite o nome para buscar…" autocomplete="off" oninput="agBuscarLead(this.value)">
+          <div id="agBuscaRes" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--linha);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.12);max-height:220px;overflow:auto;z-index:50"></div>
+        </div>
+        <div class="campo c2"><label>Nome</label><input id="agN_NOME"></div>
+        <div class="campo"><label>Telefone</label><input id="agN_TELEFONE"></div>
+        <div class="campo"><label>Data (mês/ano)</label><input type="month" id="agN_DATA"></div>
+        <div class="campo c2"><label>Empresa</label><input id="agN_EMPRESA"></div>
+      </div>
+    </div>
+    <div class="modal-rodape">
+      <button class="btn btn-borda" onclick="fecharModal('mAgNovo')">Cancelar</button>
+      <button class="btn btn-principal" onclick="salvarNovoAgendamento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL USUÁRIOS ================= -->
+<div class="modal-fundo" id="mUsuarios">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-topo">
+      <h2>Usuários do sistema</h2>
+      <button class="fechar" onclick="fecharModal('mUsuarios')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div style="font-size:12.5px;color:var(--cinza);margin-bottom:12px">
+        Cada usuário entra no sistema com a própria senha e só enxerga as abas marcadas.
+        O usuário master tem acesso a todas as abas.
+      </div>
+      <div id="listaUsuarios"></div>
+      <div class="usu-linha" style="border-style:dashed">
+        <input type="text" id="novoNome" placeholder="Nome do usuário">
+        <input type="text" id="novaSenha" placeholder="Senha" style="width:120px">
+        <select id="novoTipo" title="Tipo do usuário"><option>ADVOGADO</option><option>ESTAGIÁRIO</option><option>ATENDENTE</option></select>
+        <span class="abas-check">
+          <label><input type="checkbox" id="novoLead"> Lead</label>
+          <label><input type="checkbox" id="novoAgend"> Agendamentos</label>
+          <label><input type="checkbox" id="novoAgenda"> Agenda</label>
+          <label><input type="checkbox" id="novoAtend" checked> Atendimentos</label>
+          <label><input type="checkbox" id="novoAbert"> Abertura de Pasta</label>
+          <label><input type="checkbox" id="novoConf"> Conferência</label>
+          <label><input type="checkbox" id="novoInic"> Iniciais</label>
+          <label><input type="checkbox" id="novoAjuiz"> Ajuizamento</label>
+        </span>
+        <button class="btn btn-mini btn-principal" onclick="adicionarUsuario()">+ Adicionar</button>
+      </div>
+      <div style="border-top:2px solid var(--navy);margin-top:16px;padding-top:12px">
+        <div style="font-size:12px;font-weight:700;letter-spacing:.6px;color:var(--navy);text-transform:uppercase;margin-bottom:8px">Alterar senha do master</div>
+        <div class="usu-linha" style="border-style:dashed">
+          <input type="password" id="msAtual" placeholder="Senha atual" style="width:140px">
+          <input type="password" id="msNova" placeholder="Nova senha" style="width:140px">
+          <button class="btn btn-mini btn-principal" onclick="alterarSenhaMaster()">Alterar senha</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/**********************************************************
+ * CONFIGURAÇÃO — cole aqui a URL do App da Web (termina em /exec)
+ **********************************************************/
+const API_URL = 'https://script.google.com/macros/s/AKfycbxy32gPLb_2ZlUSehESqU9un41SxrcU7MJ4RY5EQ3Kkp10HGVZ0YCd85fb5HEcItok7bg/exec';
+
+/* ===================== constantes ===================== */
+const STATUS_CORES = {
+  'FECHOU':'verde',
+  'PENDENTE ASSINATURA':'azul',
+  'PENDENTE DE DOCUMENTO':'amarelo',
+  'SEM INTERESSE':'vermelho',
+  'SEM DIREITO':'vermelho',
+  'TENTOU LIGAR E ENVIOU MSG':'amarelo',
+  'TENTOU LIGAR E NÃO ENVIOU MENSAGEM':'amarelo',
+  'JÁ TEM AÇÃO':'vermelho',
+  'EM ANÁLISE':'cinza',
+  'RETORNAR':'cinza',
+  'PENDENTE':'cinza',
+  'MARCADO OUTRO DIA':'cinza'
+};
+const DOCS_OBRIG = [
+  ['DOC_CTPS','CTPS (Carteira de Trabalho)'],
+  ['DOC_RG_CPF','RG e CPF (frente e verso)'],
+  ['DOC_RESIDENCIA','Comprovante de Residência (últimos 3 meses)'],
+  ['DOC_TRCT','Termo de rescisão / TRCT (se foi demitido)'],
+  ['DOC_ENTREVISTA','Entrevista'],
+  ['DOC_RESUMO_DIREITO','Resumo Direito']
+];
+function docsObrigFaltantes(r){
+  return DOCS_OBRIG.filter(([c])=>{
+    try{return JSON.parse(r[c]||'[]').length===0}catch(e){return true}
+  }).map(([,t])=>t);
+}
+const DOCS_OPC = [
+  ['DOC_CONTRACHEQUES','Contracheques / holerites (últimos 3 meses)'],
+  ['DOC_EXAMES','Exames médicos (admissional e demissional)'],
+  ['DOC_CAT','CAT — Comunicação de Acidente de Trabalho'],
+  ['DOC_ATESTADOS','Atestados médicos relacionados ao trabalho'],
+  ['DOC_PRINTS','Prints de conversas / e-mails com a empresa']
+];
+const CAMPOS_IMPORT = [
+  ['','— ignorar —'],['DATA','DATA'],['HORARIO','HORÁRIO'],['OBSERVACOES','OBSERVAÇÕES'],['DATA_SAIDA','DATA SAÍDA'],
+  ['NOME','NOME'],['TELEFONE','TELEFONE'],['EMPRESA','EMPRESA'],['RESPONSAVEL','RESPONSÁVEL'],
+  ['PASTA','PASTA'],['ADV_ATENDIMENTO','ADV ATENDIMENTO'],['STATUS','STATUS']
+];
+
+let registros = [];
+let fichaAtual = null;   // registro em edição
+let importDados = null;  // {linhas:[[...]], mapa:[campo,...]}
+
+/* ===================== utilidades ===================== */
+function $(id){return document.getElementById(id)}
+function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._x);t._x=setTimeout(()=>t.style.display='none',3200)}
+function loading(on,txt){$('carregando').style.display=on?'flex':'none';if(txt)$('carregandoTxt').textContent=txt}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function normaliza(s){return String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim()}
+function dataBR(iso){ // yyyy-mm-dd -> dd/mm/yyyy
+  if(!iso) return '';
+  if(/^\d{4}-\d{2}-\d{2}/.test(iso)){const [a,m,d]=iso.slice(0,10).split('-');return `${d}/${m}/${a}`}
+  return iso;
+}
+function dataISO(br){ // dd/mm/yyyy -> yyyy-mm-dd
+  if(!br) return '';
+  const m=String(br).match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(!m) return '';
+  let a=m[3].length===2?'20'+m[3]:m[3];
+  return `${a}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+}
+function chaveData(v){const iso=dataISO(v);return iso||'9999-12-31'}
+function chaveCriado(v){
+  const m = String(v||'').match(/(\d{2})\/(\d{2})\/(\d{4})\s*(\d{2}:\d{2})?/);
+  return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4]||''}` : '9999-12-31';
+}
+function totalDocs(r){
+  let n=0;
+  [...DOCS_OBRIG,...DOCS_OPC,['DOC_OUTROS']].forEach(([c])=>{try{n+=JSON.parse(r[c]||'[]').length}catch(e){}});
+  return n;
+}
+
+/* ===================== API ===================== */
+async function apiGet(){
+  const resp = await fetch(API_URL+'?action=listar');
+  return resp.json();
+}
+async function apiPost(payload){
+  const resp = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  return resp.json();
+}
+
+/* ===================== carregar / renderizar ===================== */
+async function carregar(){
+  if(API_URL.indexOf('COLE_AQUI')===0){toast('Configure a API_URL no início do arquivo index.html');renderizar();return}
+  loading(true,'Carregando dados…');
+  try{
+    const [r, ra, rl] = await Promise.all([apiGet(), apiPost({action:'listarAgendamentos'}), apiPost({action:'listarLeads'})]);
+    if(r.ok){registros=r.registros}else{toast('Erro: '+r.erro)}
+    if(ra.ok){agRegistros=ra.registros}
+    if(rl.ok){leadRegistros=rl.registros}
+  }catch(e){toast('Falha de conexão com o Apps Script')}
+  loading(false);
+  renderizar();
+  renderAgendamentos();
+  renderLeads();
+  carregarEstagiarios();
+}
+
+let atendSel = new Set();
+let atendVisiveisIds = [];
+
+function atualizarBtnAtendLote(){
+  const b=$('btnAtendLote'); if(b) b.textContent='Editar selecionados ('+atendSel.size+')';
+}
+function toggleAtendSel(id,marcado){
+  if(marcado)atendSel.add(id);else atendSel.delete(id);
+  atualizarBtnAtendLote();
+}
+function selTodosAtend(marcado){
+  atendVisiveisIds.forEach(id=>{if(marcado)atendSel.add(id);else atendSel.delete(id)});
+  renderizar();
+}
+
+function abrirEditarAtendLote(){
+  if(!atendSel.size){toast('Marque ao menos um atendimento na lista');return}
+  $('atLoteTitulo').textContent='Editar '+atendSel.size+' selecionado(s)';
+  ['atl_DATA','atl_STATUS','atl_RESPONSAVEL','atl_ADV','atl_EMPRESA'].forEach(id=>$(id).value='');
+  $('atl_STATUS').innerHTML = '<option value=""></option>'+Object.keys(STATUS_CORES).map(s=>`<option>${s}</option>`).join('');
+  $('mAtendLote').classList.add('aberto');
+}
+
+async function salvarAtendLote(){
+  const campos = {};
+  if($('atl_DATA').value) campos.DATA = dataBR($('atl_DATA').value);
+  if($('atl_STATUS').value) campos.STATUS = $('atl_STATUS').value;
+  if($('atl_RESPONSAVEL').value.trim()) campos.RESPONSAVEL = $('atl_RESPONSAVEL').value.trim();
+  if($('atl_ADV').value.trim()) campos.ADV_ATENDIMENTO = $('atl_ADV').value.trim();
+  if($('atl_EMPRESA').value.trim()) campos.EMPRESA = $('atl_EMPRESA').value.trim();
+  if(!Object.keys(campos).length){toast('Preencha ao menos um campo para alterar');return}
+  if(!confirm('Aplicar as alterações a '+atendSel.size+' atendimento(s)?'))return;
+  loading(true,'Alterando '+atendSel.size+' atendimento(s)…');
+  const resp = await apiPost({action:'editarAtendLote',ids:[...atendSel],campos});
+  loading(false);
+  if(resp.ok){
+    fecharModal('mAtendLote');
+    toast(resp.total+' atendimento(s) alterados');
+    atendSel.clear();
+    await carregar(); // recarrega para refletir datas automáticas (fechamento etc.)
+  }else toast('Erro: '+resp.erro);
+}
+
+async function excluirAtendSel(){
+  if(!atendSel.size){toast('Marque ao menos um atendimento na lista');return}
+  if(!confirm('Excluir '+atendSel.size+' atendimento(s) selecionado(s)? Os documentos anexados continuam no Drive. Esta ação não pode ser desfeita.'))return;
+  loading(true,'Excluindo '+atendSel.size+' atendimento(s)…');
+  const resp = await apiPost({action:'excluirAtendLote',ids:[...atendSel]});
+  loading(false);
+  if(resp.ok){
+    registros = registros.filter(r=>!atendSel.has(r.ID));
+    atendSel.clear();
+    renderizar();
+    toast(resp.total+' atendimento(s) excluídos');
+  }else toast('Erro: '+resp.erro);
+}
+
+function filtrosAtivos(){
+  const f={};
+  document.querySelectorAll('[data-f]').forEach(el=>{if(el.value)f[el.dataset.f]=normaliza(el.value)});
+  return f;
+}
+function limparFiltros(){
+  document.querySelectorAll('[data-f]').forEach(el=>el.value='');
+  $('fDataDe').value='';$('fDataAte').value='';
+  renderizar();
+}
+
+function renderizar(){
+  /* --- aba 1 --- */
+  const f = filtrosAtivos();
+  const mes = $('filtroMes').value; // formato yyyy-mm
+  const dDe = $('fDataDe').value, dAte = $('fDataAte').value;
+  // estagiário enxerga apenas os nomes distribuídos para ele (fila da aba Lead)
+  const baseAtend = souEstagiario()
+    ? registros.filter(r=>normaliza(r.RESPONSAVEL)===normaliza(usuario.nome))
+    : registros;
+  const visiveis = baseAtend.filter(r=>{
+    const dISO = dataISO(r.DATA);
+    return (!mes || dISO.slice(0,7)===mes) &&
+      (!dDe || (dISO && dISO>=dDe)) &&
+      (!dAte || (dISO && dISO<=dAte)) &&
+      Object.entries(f).every(([c,v])=>normaliza(r[c]).includes(v));
+  });
+  visiveis.sort((a,b)=>(chaveData(a.DATA)+' '+(a.HORARIO||'')).localeCompare(chaveData(b.DATA)+' '+(b.HORARIO||'')));
+  const corpo = $('corpoAtend');
+  corpo.innerHTML = visiveis.map(r=>{
+    const cor = STATUS_CORES[normaliza(r.STATUS)]||'';
+    const extra = [];
+    if(normaliza(r.STATUS)==='MARCADO OUTRO DIA' && r.RETORNO_DIA_HORARIO) extra.push('Remarcado: '+esc(r.RETORNO_DIA_HORARIO));
+    const obs = [r.OBSERVACOES, r.INDICACAO?('Indicação: '+r.INDICACAO):'', (normaliza(r.STATUS)==='PENDENTE DE DOCUMENTO'&&r.CONF_OBS)?('Pendência: '+r.CONF_OBS):'', (normaliza(r.STATUS)==='PENDENTE DE DOCUMENTO'&&r.DOC_FALTANDO)?('Faltando: '+r.DOC_FALTANDO):''].filter(Boolean).join(' · ');
+    return `<tr class="st-${cor}" onclick="abrirFicha('${r.ID}')">
+      <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${atendSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleAtendSel('${r.ID}',this.checked)"></td>
+      <td>${esc(dataBR(r.DATA))}</td><td>${esc(r.HORARIO||'')}</td><td><b>${esc(r.NOME)}</b></td><td>${esc(r.TELEFONE)}</td>
+      <td>${esc(r.EMPRESA)}</td><td>${esc(r.RESPONSAVEL)}</td><td>${esc(r.PASTA)}</td>
+      <td>${esc(r.ADV_ATENDIMENTO)}</td><td>${esc(dataBR(r.DATA_SAIDA))}</td>
+      <td><span class="pill ${cor}">${esc(r.STATUS)||'—'}</span>${extra.length?'<div style="font-size:11px;margin-top:3px">'+extra.join(' · ')+'</div>':''}</td>
+      <td><span class="docs-chip">${totalDocs(r)} arq.</span></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(obs)}">${esc(obs)}</td>
+      <td class="acao">
+        <button class="btn btn-mini btn-borda" onclick="event.stopPropagation();abrirFicha('${r.ID}')">Editar</button>
+        <button class="btn btn-mini btn-perigo" onclick="event.stopPropagation();excluirLinha('${r.ID}')">Excluir</button>
+      </td>
+    </tr>`}).join('');
+  $('vazioAtend').style.display = visiveis.length?'none':'block';
+  atendVisiveisIds = visiveis.map(r=>r.ID);
+  atualizarBtnAtendLote();
+  const chkT = $('atendSelTodos'); if(chkT) chkT.checked = !!(visiveis.length && visiveis.every(r=>atendSel.has(r.ID)));
+  const mesAtual = new Date().toISOString().slice(0,7);
+  $('contAtend').textContent = registros.filter(r=>normaliza(r.STATUS)==='FECHOU' && dataISO(r.DATA_FECHAMENTO).slice(0,7)===mesAtual).length; // fechados do mês
+  $('resumoFiltro').textContent = (Object.keys(f).length||mes||dDe||dAte)?`${visiveis.length} de ${registros.length} registros`:'';
+  $('badgeFechados').textContent = 'CLIENTES FECHADOS: '+visiveis.filter(r=>normaliza(r.STATUS)==='FECHOU').length;
+
+  /* --- aba 2 --- */
+  const fechados = registros.filter(r=>normaliza(r.STATUS)==='FECHOU');
+  const noHistorico = r => normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK' && String(r.PASTA_CPJ||'').trim()!=='';
+  const mesAp = $('filtroMesAp').value; // período mensal da aba 2
+  const fa = {};
+  document.querySelectorAll('[data-fa]').forEach(el=>{if(el.value)fa[el.dataset.fa]=normaliza(el.value)});
+  const pendentes = fechados.filter(r=>!noHistorico(r) &&
+    (!mesAp || dataISO(r.DATA_FECHAMENTO).slice(0,7)===mesAp) &&
+    Object.entries(fa).every(([c,v])=>normaliza(r[c]).includes(v)));
+  const pastasAbertas = fechados.filter(noHistorico); // base das abas 3 e 4 (sem os filtros da aba 2)
+
+  /* --- passivo (totais gerais, sem filtros) --- */
+  const stIniPassivo = r => { const s=normaliza(r.INICIAL_STATUS); return (!s||s==='AJUSTES'||s==='PENDENTE DE DOCUMENTOS'||s==='PENDENTE DE INFORMACOES')?'PENDENTE':s; };
+  const nNaoAbertas = fechados.filter(r=>!noHistorico(r)).length;
+  const nNaoElaboradas = pastasAbertas.filter(r=>stIniPassivo(r)!=='FEITO').length;
+  const nNaoAjuizadas = pastasAbertas.filter(r=>stIniPassivo(r)==='FEITO' && normaliza(r.AJUIZ_STATUS)!=='AJUIZADO').length;
+  $('badgePassivo').textContent = 'PASSIVO: '+(nNaoAbertas+nNaoElaboradas+nNaoAjuizadas);
+  const historico = pastasAbertas.filter(r=>
+    (!mesAp || dataISO(r.DATA_ABERTURA).slice(0,7)===mesAp));
+  pendentes.sort((a,b)=>chaveData(a.DATA_FECHAMENTO).localeCompare(chaveData(b.DATA_FECHAMENTO)));
+
+  $('badgeAbertas').textContent = 'PASTAS ABERTAS: '+historico.length;
+  $('badgeNaoAbertas').textContent = 'PASTAS NÃO ABERTAS: '+pendentes.length;
+
+  $('corpoAbertura').innerHTML = pendentes.map(r=>{
+    const ok = normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK';
+    const faltando = normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO';
+    const cor = ok?'st-verde':(faltando?'st-amarelo':'');
+    return `<tr class="${cor}">
+      <td>${esc(dataBR(r.DATA_FECHAMENTO))}</td>
+      <td><b>${esc(r.NOME)}</b></td><td>${esc(r.EMPRESA)}</td><td>${esc(r.TELEFONE)}</td>
+      <td><input class="ap-input" id="apCpj_${r.ID}" placeholder="Nº pasta" value="${esc(r.PASTA_CPJ)}"></td>
+      <td style="min-width:250px">
+        <select onchange="apMudaSituacao('${r.ID}',this)">
+          <option value=""></option>
+          <option value="DOCUMENTAÇÃO OK" ${ok?'selected':''}>DOCUMENTAÇÃO OK</option>
+          <option value="FALTANDO DOCUMENTAÇÃO" ${faltando?'selected':''}>FALTANDO DOCUMENTAÇÃO</option>
+        </select>
+        <input class="ap-falta ${faltando?'visivel':''}" id="apFalta_${r.ID}" placeholder="Qual documentação está faltando?" value="${esc(r.DOC_FALTANDO)}">
+      </td>
+      <td class="acao">
+        <button class="btn btn-mini btn-principal" onclick="apSalvar('${r.ID}')">Salvar</button>
+        <button class="btn btn-mini btn-borda" onclick="baixarDocsZip('${r.ID}')" title="Baixar todos os documentos em PDFs individuais dentro de uma pasta ZIP">&#128230; Baixar docs (ZIP)</button>
+        <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')">Ficha</button>
+      </td>
+    </tr>`}).join('');
+  $('vazioAbertura').style.display = pendentes.length?'none':'block';
+
+  /* --- histórico --- */
+  const fh = {};
+  document.querySelectorAll('[data-fh]').forEach(el=>{if(el.value)fh[el.dataset.fh]=normaliza(el.value)});
+  const hDe = $('fHistDe').value, hAte = $('fHistAte').value;
+  const histVisiveis = historico.filter(r=>{
+    const dISO = dataISO(r.DATA_ABERTURA);
+    return (!hDe || (dISO && dISO>=hDe)) &&
+      (!hAte || (dISO && dISO<=hAte)) &&
+      Object.entries(fh).every(([c,v])=>normaliza(r[c]).includes(v));
+  });
+  histVisiveis.sort((a,b)=>chaveData(a.DATA_ABERTURA).localeCompare(chaveData(b.DATA_ABERTURA)));
+  $('corpoHistorico').innerHTML = histVisiveis.map(r=>`<tr class="st-verde">
+      <td>${esc(dataBR(r.DATA_ABERTURA))}</td>
+      <td><b>${esc(r.NOME)}</b></td><td>${esc(r.EMPRESA)}</td><td>${esc(r.TELEFONE)}</td>
+      <td><b>${esc(r.PASTA_CPJ)}</b></td>
+      <td class="acao">
+        <button class="btn btn-mini btn-borda" onclick="baixarDocsZip('${r.ID}')" title="Baixar todos os documentos em PDFs individuais dentro de uma pasta ZIP">&#128230; Baixar docs (ZIP)</button>
+        <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')">Ficha</button>
+        <button class="btn btn-mini btn-borda" onclick="voltarParaAbertura('${r.ID}')" title="Devolver para Em aberto para corrigir dados">Reabrir</button>
+      </td>
+    </tr>`).join('');
+  $('vazioHistorico').style.display = histVisiveis.length?'none':'block';
+  $('subPendentes').textContent = 'Em aberto ('+pendentes.length+')';
+  $('subHistorico').textContent = 'Pastas abertas ('+historico.length+')';
+  $('contAbertura').textContent = nNaoAbertas; // pastas ainda não abertas
+
+  /* --- conferência --- */
+  const confSt = r => normaliza(r.CONF_STATUS); // '' = ainda não conferido
+  const fc = {};
+  document.querySelectorAll('[data-fc]').forEach(el=>{if(el.value)fc[el.dataset.fc]=normaliza(el.value)});
+  const stConf = $('fConfStatus').value;
+  const confVisiveis = pastasAbertas.filter(r=>{
+    if(stConf==='__SEM__'){ if(confSt(r)) return false; }
+    else if(stConf && confSt(r)!==normaliza(stConf)) return false;
+    return Object.entries(fc).every(([c,v])=>normaliza(r[c]).includes(v));
+  });
+  confVisiveis.sort((a,b)=>chaveData(a.DATA_ABERTURA).localeCompare(chaveData(b.DATA_ABERTURA)));
+  $('corpoConf').innerHTML = confVisiveis.map(r=>{
+    const st = confSt(r);
+    const ok = st==='DOCUMENTACAO OK';
+    const pend = st==='PENDENCIA DE DOCUMENTOS';
+    const cor = ok?'st-verde':(pend?'st-vermelho':'');
+    return `<tr class="${cor}">
+      <td>${esc(dataBR(r.DATA_ABERTURA))}</td>
+      <td><b>${esc(r.NOME)}</b></td><td>${esc(r.EMPRESA)}</td><td>${esc(r.TELEFONE)}</td>
+      <td><b>${esc(r.PASTA_CPJ)}</b></td>
+      <td><span class="docs-chip">${totalDocs(r)} arq.</span></td>
+      <td style="min-width:280px">
+        <select onchange="confMudaStatus('${r.ID}',this)">
+          <option value=""></option>
+          <option value="DOCUMENTAÇÃO OK" ${ok?'selected':''}>DOCUMENTAÇÃO OK</option>
+          <option value="PENDÊNCIA DE DOCUMENTOS" ${pend?'selected':''}>PENDÊNCIA DE DOCUMENTOS</option>
+        </select>
+        <span id="confPend_${r.ID}" style="display:${pend?'flex':'none'};gap:4px;margin-top:5px;align-items:flex-end">
+          <textarea id="confObs_${r.ID}" placeholder="Descrição da pendência — pode escrever à vontade" rows="4" style="flex:1;min-width:260px;resize:vertical;font:inherit;padding:6px 8px;border:1px solid var(--linha);border-radius:6px">${esc(r.CONF_OBS||'')}</textarea>
+          <button class="btn btn-mini btn-principal" onclick="confirmarPendencia('${r.ID}')" title="Salvar a pendência e devolver a pasta para Atendimentos">Confirmar</button>
+        </span>
+      </td>
+      <td class="acao">
+        <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')" title="Abrir a ficha para conferir os documentos anexados">Ficha</button>
+        <button class="btn btn-mini btn-borda" onclick="baixarDocsZip('${r.ID}')" title="Baixar todos os documentos em PDFs individuais dentro de uma pasta ZIP">&#128230; Baixar docs (ZIP)</button>
+      </td>
+    </tr>`}).join('');
+  $('vazioConf').style.display = confVisiveis.length?'none':'block';
+  $('contConf').textContent = pastasAbertas.filter(r=>confSt(r)!=='DOCUMENTACAO OK').length; // passivo: ainda não conferidas OK
+
+  /* --- aba 3: iniciais para elaborar --- */
+  const INI_CORES = {'FEITO':'verde','PENDENTE':'vermelho'};
+  const statusIni = r => {
+    const s = normaliza(r.INICIAL_STATUS);
+    // padrão e status antigos (AJUSTES, PEND. DOCUMENTOS, PEND. INFORMAÇÕES): PENDENTE (vermelho)
+    if(!s || s==='AJUSTES' || s==='PENDENTE DE DOCUMENTOS' || s==='PENDENTE DE INFORMACOES') return 'PENDENTE';
+    return s;
+  };
+  const fi = {};
+  document.querySelectorAll('[data-fi]').forEach(el=>{if(el.value)fi[el.dataset.fi]=normaliza(el.value)});
+  const iniData=$('fIniData').value, iniSt=$('fIniStatus').value, mesIni=$('filtroMesIni').value;
+  const iniVisiveis = pastasAbertas.filter(r=>{
+    const dISO = dataISO(r.DATA_SAIDA);
+    return (!mesIni || dataISO(r.DATA_ABERTURA).slice(0,7)===mesIni) &&
+      (!iniData || dISO===iniData) &&
+      (!iniSt || statusIni(r)===iniSt) &&
+      Object.entries(fi).every(([c,v])=>normaliza(r[c]).includes(v));
+  });
+  iniVisiveis.sort((a,b)=>chaveData(a.DATA_ABERTURA).localeCompare(chaveData(b.DATA_ABERTURA)));
+  $('corpoIniciais').innerHTML = iniVisiveis.map(r=>{
+    const st = statusIni(r);
+    const cor = INI_CORES[st]||'vermelho';
+    return `<tr class="st-${cor}">
+      <td>${esc(dataBR(r.DATA_ABERTURA))}</td>
+      <td><b>${esc(r.NOME)}</b></td>
+      <td><b>${esc(r.EMPRESA)}</b></td>
+      <td>${esc(r.PASTA_CPJ)}</td>
+      <td>${esc(dataBR(r.DATA_SAIDA))}</td>
+      <td><input style="width:100%" id="iniResp_${r.ID}" placeholder="Responsável" value="${esc(r.INICIAL_RESP||'')}"></td>
+      <td><input style="width:100%" id="iniObs_${r.ID}" placeholder="Observação" value="${esc(r.INICIAL_OBS||'')}"></td>
+      <td>
+        <select onchange="salvarInicialStatus('${r.ID}',this.value)">
+          <option value="PENDENTE" ${st==='PENDENTE'?'selected':''}>PENDENTE</option>
+          <option value="FEITO" ${st==='FEITO'?'selected':''}>FEITO</option>
+        </select>
+      </td>
+      <td class="acao">
+        <button class="btn btn-mini btn-principal" onclick="salvarInicialObs('${r.ID}')">Salvar</button>
+        <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')">Ficha</button>
+      </td>
+    </tr>`}).join('');
+  const iniPend = iniVisiveis.filter(r=>statusIni(r)==='PENDENTE').length;
+  $('badgeIniFazer').textContent = 'INICIAIS PARA FAZER: '+iniPend;
+  $('badgeIniPend').textContent = 'PENDENTES: '+iniPend;
+  $('badgeIniFeitos').textContent = 'FEITOS: '+iniVisiveis.filter(r=>statusIni(r)==='FEITO').length;
+  $('vazioIniciais').style.display = iniVisiveis.length?'none':'block';
+  $('contIniciais').textContent = nNaoElaboradas; // iniciais pendentes de fazer
+
+  /* --- aba 4: ajuizamento --- */
+  const feitas = pastasAbertas.filter(r=>statusIni(r)==='FEITO');
+  const statusAj = r => normaliza(r.AJUIZ_STATUS)||'NAO AJUIZADO'; // padrão: NÃO AJUIZADO (vermelho)
+  const fj = {};
+  document.querySelectorAll('[data-fj]').forEach(el=>{if(el.value)fj[el.dataset.fj]=normaliza(el.value)});
+  const ajSaida=$('fAjSaida').value, ajData=$('fAjData').value, ajSt=$('fAjStatus').value, mesAj=$('filtroMesAj').value;
+  const ajVisiveis = feitas.filter(r=>{
+    const dSaida = dataISO(r.DATA_SAIDA), dAj = dataISO(r.AJUIZ_DATA);
+    return (!mesAj || dataISO(r.DATA_FEITO).slice(0,7)===mesAj) &&
+      (!ajSaida || dSaida===ajSaida) &&
+      (!ajData || dAj===ajData) &&
+      (!ajSt || statusAj(r)===ajSt) &&
+      Object.entries(fj).every(([c,v])=>normaliza(r[c]).includes(v));
+  });
+  ajVisiveis.sort((a,b)=>chaveData(a.DATA_FEITO).localeCompare(chaveData(b.DATA_FEITO)));
+  $('corpoAjuiz').innerHTML = ajVisiveis.map(r=>{
+    const aj = statusAj(r)==='AJUIZADO';
+    return `<tr class="${aj?'st-verde':'st-vermelho'}">
+      <td>${esc(dataBR(r.DATA_FEITO))}</td>
+      <td><b>${esc(r.NOME)}</b></td>
+      <td><b>${esc(r.EMPRESA)}</b></td>
+      <td>${esc(r.PASTA_CPJ)}</td>
+      <td>${esc(dataBR(r.DATA_SAIDA))}</td>
+      <td><input type="date" class="ap-input" id="ajData_${r.ID}" value="${esc(dataISO(r.AJUIZ_DATA)||r.AJUIZ_DATA||'')}"></td>
+      <td>
+        <select onchange="salvarAjuizStatus('${r.ID}',this.value)">
+          <option value="NÃO AJUIZADO" ${!aj?'selected':''}>NÃO AJUIZADO</option>
+          <option value="AJUIZADO" ${aj?'selected':''}>AJUIZADO</option>
+        </select>
+      </td>
+      <td class="acao">
+        <button class="btn btn-mini btn-principal" onclick="salvarAjuizData('${r.ID}')">Salvar</button>
+        <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')">Ficha</button>
+      </td>
+    </tr>`}).join('');
+  const nAjuizados = ajVisiveis.filter(r=>statusAj(r)==='AJUIZADO').length;
+  $('badgeAjuizados').textContent = 'AJUIZADOS: '+nAjuizados;
+  $('badgeNaoAjuizados').textContent = 'NÃO AJUIZADOS: '+(ajVisiveis.length-nAjuizados);
+  dadosExport = {atendimentos:visiveis, aberturaPendentes:pendentes, pastasAbertas:histVisiveis, iniciais:iniVisiveis, ajuizamento:ajVisiveis};
+  $('vazioAjuiz').style.display = ajVisiveis.length?'none':'block';
+  $('contAjuiz').textContent = nNaoAjuizadas; // processos não ajuizados
+}
+
+/* ===================== ficha (modal) ===================== */
+function abrirFicha(id){
+  fichaAtual = id ? registros.find(r=>r.ID===id) : null;
+  $('fichaTitulo').textContent = fichaAtual ? 'Atendimento — '+(fichaAtual.NOME||'') : 'Novo atendimento';
+  $('btnExcluir').style.display = fichaAtual?'inline-flex':'none';
+  const g = c => fichaAtual ? (fichaAtual[c]||'') : '';
+  $('f_DATA').value = dataISO(g('DATA'))||g('DATA');
+  $('f_DATA_SAIDA').value = dataISO(g('DATA_SAIDA'))||g('DATA_SAIDA');
+  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO']
+    .forEach(c=>$('f_'+c).value=g(c));
+  // descrição da pendência registrada na Conferência (somente leitura)
+  const pendConf = g('CONF_OBS');
+  $('boxPendConf').style.display = pendConf?'block':'none';
+  $('f_CONF_OBS_VIS').value = pendConf;
+  condicionais();
+  renderDocs();
+  $('mFicha').classList.add('aberto');
+}
+function fecharModal(id){$(id).classList.remove('aberto')}
+
+function condicionais(){
+  const s = normaliza($('f_STATUS').value);
+  $('cond_INDICACAO').classList.toggle('visivel', s==='FECHOU');
+  $('cond_OUTRODIA').classList.toggle('visivel', s==='MARCADO OUTRO DIA');
+}
+
+async function salvarFicha(){
+  const reg = {
+    ID: fichaAtual?fichaAtual.ID:'',
+    DATA: dataBR($('f_DATA').value),
+    HORARIO: $('f_HORARIO').value,
+    DATA_SAIDA: dataBR($('f_DATA_SAIDA').value),
+    NOME: $('f_NOME').value.trim(),
+    TELEFONE: $('f_TELEFONE').value.trim(),
+    EMPRESA: $('f_EMPRESA').value.trim(),
+    RESPONSAVEL: $('f_RESPONSAVEL').value.trim(),
+    PASTA: $('f_PASTA').value.trim(),
+    ADV_ATENDIMENTO: $('f_ADV_ATENDIMENTO').value.trim(),
+    OBSERVACOES: $('f_OBSERVACOES').value.trim(),
+    STATUS: $('f_STATUS').value,
+    INDICACAO: $('f_INDICACAO').value.trim(),
+    RETORNO_DIA_HORARIO: $('f_RETORNO_DIA_HORARIO').value.trim()
+  };
+  if(!reg.NOME){toast('Informe o nome do cliente');return}
+  loading(true,'Salvando…');
+  try{
+    const r = await apiPost({action:'salvar',registro:reg});
+    if(r.ok){
+      reg.ID = r.id;
+      if(r.statusAjustado){
+        // FECHOU sem todos os obrigatórios: o servidor trocou para PENDENTE DE DOCUMENTO
+        reg.STATUS = r.statusAjustado;
+        $('f_STATUS').value = r.statusAjustado;
+        alert('O status FECHOU exige todos os documentos obrigatórios anexados.\n\nFaltando:\n- '+(r.docsFaltando||[]).join('\n- ')+'\n\nO atendimento foi salvo como PENDENTE DE DOCUMENTO. Anexe os documentos e mude o status para FECHOU novamente.');
+      }
+      if(r.advogado){reg.ADV_ATENDIMENTO=r.advogado;$('f_ADV_ATENDIMENTO').value=r.advogado;toast('Atendimento distribuído para '+r.advogado)}
+      const idx = registros.findIndex(x=>x.ID===r.id);
+      if(idx>=0){registros[idx]={...registros[idx],...reg}}else{registros.push(reg)}
+      fichaAtual = registros.find(x=>x.ID===r.id);
+      toast('Salvo com sucesso');
+      renderizar(); renderDocs();
+      if(r.statusAjustado){
+        // mantém a ficha aberta para anexar os documentos que faltam
+        $('fichaTitulo').textContent='Atendimento — '+reg.NOME; $('btnExcluir').style.display='inline-flex';
+      }
+      else if(normaliza(reg.STATUS)!=='FECHOU') fecharModal('mFicha');
+      else { $('fichaTitulo').textContent='Atendimento — '+reg.NOME; $('btnExcluir').style.display='inline-flex'; }
+    }else toast('Erro: '+r.erro);
+  }catch(e){toast('Falha ao salvar')}
+  loading(false);
+}
+
+async function excluirLinha(id){
+  const r = registros.find(x=>x.ID===id);
+  if(!r) return;
+  if(!confirm('Excluir o atendimento de '+(r.NOME||'este cliente')+'?')) return;
+  loading(true,'Excluindo…');
+  const resp = await apiPost({action:'excluir',id});
+  loading(false);
+  if(resp.ok){registros=registros.filter(x=>x.ID!==id);renderizar();toast('Excluído')}
+  else toast('Erro: '+resp.erro);
+}
+
+async function excluirRegistro(){
+  if(!fichaAtual) return;
+  if(!confirm('Excluir o atendimento de '+fichaAtual.NOME+'?')) return;
+  loading(true,'Excluindo…');
+  const r = await apiPost({action:'excluir',id:fichaAtual.ID});
+  loading(false);
+  if(r.ok){registros=registros.filter(x=>x.ID!==fichaAtual.ID);fecharModal('mFicha');renderizar();toast('Excluído')}
+  else toast('Erro: '+r.erro);
+}
+
+/* ===================== documentos ===================== */
+function renderDocs(){
+  const tem = !!fichaAtual;
+  $('avisoSalvar').style.display = tem?'none':'block';
+  $('listaDocs').style.display = tem?'block':'none';
+  if(!tem) return;
+  const linha = ([col,titulo])=>{
+    let lista=[]; try{lista=JSON.parse(fichaAtual[col]||'[]')}catch(e){}
+    return `<div class="doc-linha">
+      <div class="titulo">${titulo}</div>
+      <div class="arquivos">
+        ${lista.map(d=>`<span class="doc-arquivo">
+            <a href="https://drive.google.com/file/d/${d.id}/view" target="_blank" title="${esc(d.nome)}">${esc(d.nome)}</a>
+            <button title="Baixar este arquivo" onclick="baixarDocArquivo('${d.id}')">&#11015;</button>
+            <button title="Remover" onclick="removerDoc('${col}','${d.id}')">&times;</button>
+          </span>`).join('')}
+        <span class="btn btn-mini btn-borda doc-add">+ Anexar<input type="file" multiple accept=".pdf,image/*" onchange="anexar('${col}',this)"></span>
+      </div>
+    </div>`};
+  $('docsObrig').innerHTML = DOCS_OBRIG.map(linha).join('');
+  $('docsOpc').innerHTML = DOCS_OPC.map(linha).join('');
+  $('docsOutros').innerHTML = linha(['DOC_OUTROS','Outros documentos']);
+}
+
+async function baixarDocArquivo(driveId){
+  loading(true,'Baixando arquivo…');
+  const r = await apiPost({action:'baixarDoc',driveId});
+  loading(false);
+  if(!r.ok){toast('Erro: '+r.erro);return}
+  const bytes = Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0));
+  const blob = new Blob([bytes],{type:r.mime||'application/octet-stream'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=r.nome; // o download sai com o próprio nome do arquivo
+  a.click();
+}
+
+function lerArquivoBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// comprime fotos grandes antes do upload (mais rápido e economiza Drive)
+function comprimirImagem(file){
+  return new Promise(res=>{
+    if(!file.type.startsWith('image/')||file.size<1200000){res(file);return}
+    const img=new Image();
+    img.onload=()=>{
+      const max=1600, esc=Math.min(1,max/Math.max(img.width,img.height));
+      const cv=document.createElement('canvas');
+      cv.width=img.width*esc; cv.height=img.height*esc;
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      cv.toBlob(b=>res(new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'})),'image/jpeg',0.82);
+    };
+    img.onerror=()=>res(file);
+    img.src=URL.createObjectURL(file);
+  });
+}
+
+function adicionarOutroDoc(){
+  if(!fichaAtual){toast('Salve o atendimento primeiro');return}
+  const nome = prompt('Nome do documento (ex.: Procuração, Contrato, Sentença anterior):');
+  if(!nome || !nome.trim()) return;
+  const input = document.createElement('input');
+  input.type='file'; input.multiple=true; input.accept='.pdf,image/*';
+  input.onchange = () => anexar('DOC_OUTROS', input, nome.trim());
+  input.click();
+}
+
+async function anexar(coluna,input,prefixo){
+  if(!fichaAtual){toast('Salve o atendimento primeiro');return}
+  const files=[...input.files]; input.value='';
+  for(let i=0;i<files.length;i++){
+    loading(true,`Enviando ${i+1}/${files.length}: ${files[i].name}`);
+    try{
+      const f = await comprimirImagem(files[i]);
+      const b64 = await lerArquivoBase64(f);
+      const nomeArq = (prefixo?prefixo+' - ':'')+f.name;
+      const r = await apiPost({action:'uploadDoc',id:fichaAtual.ID,nome:fichaAtual.NOME,coluna,arquivoNome:nomeArq,mimeType:f.type||'application/octet-stream',base64:b64});
+      if(r.ok){fichaAtual[coluna]=JSON.stringify(r.lista)}
+      else toast('Erro no envio: '+r.erro);
+    }catch(e){toast('Falha ao enviar '+files[i].name)}
+  }
+  loading(false);
+  renderDocs(); renderizar();
+  toast('Documento(s) salvos no Google Drive');
+}
+
+async function removerDoc(coluna,arquivoId){
+  if(!confirm('Remover este documento?'))return;
+  loading(true,'Removendo…');
+  const r = await apiPost({action:'removerDoc',id:fichaAtual.ID,coluna,arquivoId});
+  loading(false);
+  if(r.ok){fichaAtual[coluna]=JSON.stringify(r.lista);renderDocs();renderizar()}
+  else toast('Erro: '+r.erro);
+}
+
+/* ===================== abertura de pasta ===================== */
+function trocarSubAba(qual){
+  subAtual = qual;
+  $('subPendentes').classList.toggle('ativa',qual==='pendentes');
+  $('subHistorico').classList.toggle('ativa',qual==='historico');
+  $('wrapPendentes').style.display = qual==='pendentes'?'block':'none';
+  $('wrapHistorico').style.display = qual==='historico'?'block':'none';
+}
+function limparFiltrosAp(){
+  document.querySelectorAll('[data-fa]').forEach(el=>el.value='');
+  renderizar();
+}
+function limparFiltrosConf(){
+  document.querySelectorAll('[data-fc]').forEach(el=>el.value='');
+  $('fConfStatus').value='';
+  renderizar();
+}
+function limparFiltrosIni(){
+  document.querySelectorAll('[data-fi]').forEach(el=>el.value='');
+  $('fIniData').value='';$('fIniStatus').value='';
+  renderizar();
+}
+function limparFiltrosAj(){
+  document.querySelectorAll('[data-fj]').forEach(el=>el.value='');
+  $('fAjSaida').value='';$('fAjData').value='';$('fAjStatus').value='';
+  renderizar();
+}
+function limparFiltrosHist(){
+  document.querySelectorAll('[data-fh]').forEach(el=>el.value='');
+  $('fHistDe').value='';$('fHistAte').value='';
+  renderizar();
+}
+
+async function voltarParaAbertura(id){
+  if(!confirm('Devolver esta pasta para "Em aberto"? A documentação voltará a ficar pendente de confirmação.'))return;
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvar',registro:{ID:id,DOC_SITUACAO:''}});
+  loading(false);
+  if(resp.ok){const r=registros.find(x=>x.ID===id);if(r)r.DOC_SITUACAO='';renderizar();trocarSubAba('pendentes');toast('Pasta devolvida para Em aberto')}
+  else toast('Erro: '+resp.erro);
+}
+
+async function confMudaStatus(id,sel){
+  const valor = sel.value;
+  if(normaliza(valor)==='PENDENCIA DE DOCUMENTOS'){
+    // só mostra o campo de observação; o salvamento acontece no botão Confirmar
+    $('confPend_'+id).style.display='flex';
+    $('confObs_'+id).focus();
+    return;
+  }
+  $('confPend_'+id).style.display='none';
+  const r = registros.find(x=>x.ID===id);
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvar',registro:{ID:id,CONF_STATUS:valor,CONF_OBS:''}});
+  loading(false);
+  if(resp.ok){if(r){r.CONF_STATUS=valor;r.CONF_OBS=''}renderizar();toast(valor?('Conferência: '+valor):'Conferência limpa')}
+  else toast('Erro: '+resp.erro);
+}
+
+async function confirmarPendencia(id){
+  const r = registros.find(x=>x.ID===id);
+  const obs = $('confObs_'+id).value.trim();
+  if(!obs){toast('Descreva a pendência de documentos');return}
+  if(!confirm('Confirmar a pendência? A pasta voltará para a aba Atendimentos com o status PENDENTE DE DOCUMENTO.'))return;
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvar',registro:{ID:id,CONF_STATUS:'PENDÊNCIA DE DOCUMENTOS',CONF_OBS:obs,STATUS:'PENDENTE DE DOCUMENTO'}});
+  loading(false);
+  if(resp.ok){
+    if(r){r.CONF_STATUS='PENDÊNCIA DE DOCUMENTOS';r.CONF_OBS=obs;r.STATUS='PENDENTE DE DOCUMENTO'}
+    renderizar();
+    toast('Pasta devolvida para Atendimentos como PENDENTE DE DOCUMENTO');
+  }else toast('Erro: '+resp.erro);
+}
+
+async function salvarInicialStatus(id,valor){
+  const r = registros.find(x=>x.ID===id);
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvar',registro:{ID:id,INICIAL_STATUS:valor}});
+  loading(false);
+  if(resp.ok){if(r)r.INICIAL_STATUS=valor;renderizar();toast('Status: '+valor)}
+  else toast('Erro: '+resp.erro);
+}
+
+async function salvarAjuizStatus(id,valor){
+  const r = registros.find(x=>x.ID===id);
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvar',registro:{ID:id,AJUIZ_STATUS:valor}});
+  loading(false);
+  if(resp.ok){if(r)r.AJUIZ_STATUS=valor;renderizar();toast('Status: '+valor)}
+  else toast('Erro: '+resp.erro);
+}
+
+async function salvarAjuizData(id){
+  const r = registros.find(x=>x.ID===id);
+  const data = dataBR($('ajData_'+id).value);
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvar',registro:{ID:id,AJUIZ_DATA:data}});
+  loading(false);
+  if(resp.ok){if(r)r.AJUIZ_DATA=data;renderizar();toast('Data do ajuizamento salva')}
+  else toast('Erro: '+resp.erro);
+}
+
+async function salvarInicialObs(id){
+  const r = registros.find(x=>x.ID===id);
+  const obs = $('iniObs_'+id).value.trim();
+  const respIni = $('iniResp_'+id).value.trim();
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvar',registro:{ID:id,INICIAL_OBS:obs,INICIAL_RESP:respIni}});
+  loading(false);
+  if(resp.ok){if(r){r.INICIAL_OBS=obs;r.INICIAL_RESP=respIni}toast('Salvo')}
+  else toast('Erro: '+resp.erro);
+}
+
+function apMudaSituacao(id,sel){
+  const campo=$('apFalta_'+id);
+  campo.classList.toggle('visivel', normaliza(sel.value)==='FALTANDO DOCUMENTACAO');
+}
+async function apSalvar(id){
+  const r = registros.find(x=>x.ID===id);
+  const situacao = event.target.closest('tr').querySelector('select').value;
+  const numeroCpj = $('apCpj_'+id).value.trim();
+  // não deixa marcar DOCUMENTAÇÃO OK sem todos os documentos obrigatórios anexados
+  if(normaliza(situacao)==='DOCUMENTACAO OK'){
+    const faltam = docsObrigFaltantes(r);
+    if(faltam.length){
+      const lista = 'Obrigatórios faltando: '+faltam.join(', ');
+      alert('Esta pasta NÃO pode ser aberta: faltam documentos obrigatórios anexados na ficha.\n\n- '+faltam.join('\n- ')+'\n\nEla ficará como FALTANDO DOCUMENTAÇÃO até anexar tudo.');
+      loading(true,'Salvando…');
+      const respF = await apiPost({action:'salvar',registro:{ID:id,DOC_SITUACAO:'FALTANDO DOCUMENTAÇÃO',DOC_FALTANDO:lista,PASTA_CPJ:numeroCpj,STATUS:'PENDENTE DE DOCUMENTO'}});
+      loading(false);
+      if(respF.ok){r.DOC_SITUACAO='FALTANDO DOCUMENTAÇÃO';r.DOC_FALTANDO=lista;r.PASTA_CPJ=numeroCpj;r.STATUS='PENDENTE DE DOCUMENTO';renderizar()}
+      return;
+    }
+  }
+  const faltandoDoc = normaliza(situacao)==='FALTANDO DOCUMENTACAO';
+  const reg = {
+    ID:id,
+    DOC_SITUACAO: situacao,
+    DOC_FALTANDO: faltandoDoc?$('apFalta_'+id).value.trim():'',
+    PASTA_CPJ: numeroCpj
+  }; // a data de abertura é registrada automaticamente pelo servidor
+  // FALTANDO DOCUMENTAÇÃO devolve o atendimento com o status PENDENTE DE DOCUMENTO
+  if(faltandoDoc) reg.STATUS = 'PENDENTE DE DOCUMENTO';
+  // o nº da pasta no CPJ vai automaticamente para o campo PASTA da ficha
+  if(numeroCpj) reg.PASTA = numeroCpj;
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvar',registro:reg});
+  loading(false);
+  if(resp.ok){
+    Object.assign(r,reg);renderizar();
+    if(normaliza(reg.DOC_SITUACAO)==='DOCUMENTACAO OK' && reg.PASTA_CPJ){
+      toast('Pasta '+reg.PASTA_CPJ+' aberta e movida para Pastas abertas');
+    }else if(faltandoDoc){
+      toast('Devolvido para Atendimentos como PENDENTE DE DOCUMENTO');
+    }else{
+      toast('Abertura de pasta salva');
+    }
+  }
+  else toast('Erro: '+resp.erro);
+}
+
+/* ===================== PDF unificado ===================== */
+async function baixarDocsZip(id){
+  loading(true,'Baixando documentos do Drive…');
+  let dados;
+  try{ dados = await apiPost({action:'docsParaPdf',id}); }
+  catch(e){loading(false);toast('Falha ao buscar documentos');return}
+  if(!dados.ok){loading(false);toast('Erro: '+dados.erro);return}
+  if(!dados.docs.length){loading(false);toast('Este cliente não possui documentos anexados');return}
+
+  loading(true,'Convertendo cada documento em PDF…');
+  const {PDFDocument} = PDFLib;
+  const zip = new JSZip();
+  const usados = {};
+  let falhas = [];
+
+  // nome no ZIP = nomenclatura do documento no sistema (CTPS, RG e CPF, etc.)
+  const NOMES_ZIP = {
+    DOC_CTPS:'CTPS', DOC_RG_CPF:'RG e CPF', DOC_RESIDENCIA:'Comprovante de Residência',
+    DOC_TRCT:'TRCT', DOC_ENTREVISTA:'Entrevista', DOC_RESUMO_DIREITO:'Resumo Direito',
+    DOC_CONTRACHEQUES:'Contracheques', DOC_EXAMES:'Exames Médicos', DOC_CAT:'CAT',
+    DOC_ATESTADOS:'Atestados Médicos', DOC_PRINTS:'Prints'
+  };
+  const nomeNoZip = d=>{
+    if(d.col==='DOC_OUTROS') return String(d.nome||'Outros').replace(/\.\w+$/,''); // outros mantêm o nome dado ao documento
+    return NOMES_ZIP[d.col] || String(d.categoria||d.nome||'Documento');
+  };
+  const nomePdf = nome=>{
+    let base = String(nome||'documento').replace(/[\\/:*?"<>|]/g,'-').trim()||'documento';
+    let n = base, i = 2;
+    while(usados[n]){n = base+' ('+(i++)+')'} // vários arquivos do mesmo documento: CTPS, CTPS (2)…
+    usados[n]=true;
+    return n+'.pdf';
+  };
+
+  for(const d of dados.docs){
+    const bytes = Uint8Array.from(atob(d.base64),c=>c.charCodeAt(0));
+    try{
+      if(d.mime==='application/pdf'){
+        zip.file(nomePdf(nomeNoZip(d)), bytes); // já é PDF: entra como está
+      }else if(d.mime.startsWith('image/')){
+        // imagem vira um PDF individual em A4
+        const pdf = await PDFDocument.create();
+        const img = d.mime==='image/png' ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
+        const pg = pdf.addPage([595.28,841.89]);
+        const escl = Math.min((595.28-60)/img.width,(841.89-60)/img.height,1);
+        const w=img.width*escl,h=img.height*escl;
+        pg.drawImage(img,{x:(595.28-w)/2,y:(841.89-h)/2,width:w,height:h});
+        zip.file(nomePdf(nomeNoZip(d)), await pdf.save());
+      }else{
+        falhas.push(d.nome);
+      }
+    }catch(e){
+      falhas.push(d.nome);
+    }
+  }
+
+  if(!Object.keys(usados).length){loading(false);toast('Nenhum documento pôde ser convertido');return}
+
+  loading(true,'Gerando a pasta ZIP…');
+  const blob = await zip.generateAsync({type:'blob'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Documentos - '+(dados.cliente||'cliente')+'.zip';
+  a.click();
+  loading(false);
+  toast(falhas.length?('ZIP gerado sem: '+falhas.join(', ')):'ZIP gerado com '+Object.keys(usados).length+' PDF(s)');
+}
+
+/* ===================== importação Excel ===================== */
+function importarExcel(input){
+  const file=input.files[0]; input.value='';
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wb=XLSX.read(e.target.result,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const linhas=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});
+    prepararImportacao(linhas.filter(l=>l.some(c=>String(c).trim()!=='')));
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ===================== importação PDF ===================== */
+async function importarPdf(input){
+  const file=input.files[0]; input.value='';
+  if(!file)return;
+  loading(true,'Lendo PDF…');
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const buf=await file.arrayBuffer();
+    const doc=await pdfjsLib.getDocument({data:buf}).promise;
+    const linhas=[];
+    for(let p=1;p<=doc.numPages;p++){
+      const pg=await doc.getPage(p);
+      const tc=await pg.getTextContent();
+      // agrupa itens por posição vertical (linha) e ordena por horizontal
+      const mapa={};
+      tc.items.forEach(it=>{
+        const y=Math.round(it.transform[5]/3)*3;
+        (mapa[y]=mapa[y]||[]).push({x:it.transform[4],t:it.str});
+      });
+      Object.keys(mapa).map(Number).sort((a,b)=>b-a).forEach(y=>{
+        const itens=mapa[y].sort((a,b)=>a.x-b.x);
+        // separa em colunas quando há espaço grande entre itens
+        const cels=[]; let atual=''; let fimX=null;
+        itens.forEach(it=>{
+          if(fimX!==null && it.x-fimX>18){cels.push(atual.trim());atual=''}
+          atual+=(atual?' ':'')+it.t;
+          fimX=it.x+it.t.length*5;
+        });
+        if(atual.trim())cels.push(atual.trim());
+        if(cels.length)linhas.push(cels);
+      });
+    }
+    loading(false);
+    if(!linhas.length){toast('Não foi possível extrair texto deste PDF (pode ser digitalizado/imagem)');return}
+    prepararImportacao(linhas);
+  }catch(e){loading(false);toast('Erro ao ler o PDF')}
+}
+
+/* ===================== mapeamento e confirmação ===================== */
+function prepararImportacao(linhas){
+  if(!linhas.length){toast('Arquivo vazio');return}
+  const nCols=Math.max(...linhas.map(l=>l.length));
+  // detecta se a 1ª linha é cabeçalho e mapeia automaticamente
+  const cab = linhas[0].map(normaliza);
+  const auto = Array(nCols).fill('');
+  const dicionario = {
+    'DATA':'DATA','HORARIO':'HORARIO','HORA':'HORARIO','OBSERVACOES':'OBSERVACOES','OBSERVACAO':'OBSERVACOES','OBS':'OBSERVACOES',
+    'DATA SAIDA':'DATA_SAIDA','SAIDA':'DATA_SAIDA','NOME':'NOME','CLIENTE':'NOME',
+    'TELEFONE':'TELEFONE','FONE':'TELEFONE','CELULAR':'TELEFONE','EMPRESA':'EMPRESA',
+    'RESPONSAVEL':'RESPONSAVEL','PASTA':'PASTA','ADV ATENDIMENTO':'ADV_ATENDIMENTO',
+    'ADV':'ADV_ATENDIMENTO','ADVOGADO':'ADV_ATENDIMENTO','STATUS':'STATUS'
+  };
+  let temCabecalho=false;
+  cab.forEach((c,i)=>{if(dicionario[c]){auto[i]=dicionario[c];temCabecalho=true}});
+  const dados = temCabecalho?linhas.slice(1):linhas;
+  if(!temCabecalho){ // ordem padrão pedida
+    ['DATA','OBSERVACOES','DATA_SAIDA','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','STATUS']
+      .forEach((c,i)=>{if(i<nCols)auto[i]=c});
+  }
+  importDados={linhas:dados,nCols};
+  $('mapaGrade').innerHTML = Array.from({length:nCols},(_,i)=>`
+    <div class="mapa-col">
+      <select data-col="${i}">${CAMPOS_IMPORT.map(([v,t])=>`<option value="${v}" ${auto[i]===v?'selected':''}>${t}</option>`).join('')}</select>
+      ${dados.slice(0,4).map(l=>`<div class="amostra">${esc(l[i]||'')}</div>`).join('')}
+    </div>`).join('');
+  $('impTotal').textContent = dados.length+' linha(s) serão importadas.'+(temCabecalho?' Cabeçalho detectado e ignorado.':'');
+  $('mImport').classList.add('aberto');
+}
+
+async function confirmarImportacao(){
+  const mapa=[...document.querySelectorAll('#mapaGrade select')].map(s=>s.value);
+  if(!mapa.includes('NOME')){toast('Defina qual coluna é o NOME');return}
+  const novos = importDados.linhas.map(l=>{
+    const reg={};
+    mapa.forEach((campo,i)=>{if(campo&&l[i]!==undefined)reg[campo]=String(l[i]).trim()});
+    return reg;
+  }).filter(r=>r.NOME);
+  if(!novos.length){toast('Nenhuma linha com NOME preenchido');return}
+  fecharModal('mImport');
+  loading(true,`Importando ${novos.length} registros…`);
+  try{
+    const r = await apiPost({action:'salvarLote',registros:novos});
+    if(r.ok){toast(r.total+' registros importados');await carregar()}
+    else toast('Erro: '+r.erro);
+  }catch(e){toast('Falha na importação')}
+  loading(false);
+}
+
+/* ===================== leads ===================== */
+let leadRegistros = [];
+function souEstagiario(){return usuario && !usuario.master && normaliza(usuario.tipo||'')==='ESTAGIARIO'}
+let leadSel = new Set();
+let leadEditId = null;
+let estagiariosCache = [];
+
+async function carregarEstagiarios(){
+  const r = await apiPost({action:'listarEstagiarios'});
+  if(r.ok){
+    estagiariosCache = r.estagiarios||[];
+    $('dlEstagiarios').innerHTML = estagiariosCache.map(n=>`<option value="${esc(n)}">`).join('');
+  }
+}
+function estagValido(v){
+  const n = normaliza(v);
+  return estagiariosCache.find(e=>normaliza(e)===n)||null;
+}
+
+function renderLeads(){
+  const estag = souEstagiario();
+  // estagiário só trabalha a própria fila: esconde criação/importação/atribuição
+  ['btnNovoLead','boxAtribuir','btnImportLead','dicaEstagiario'].forEach(id=>{
+    const el=$(id); if(el) el.style.display = estag?'none':'';
+  });
+  const base = estag ? leadRegistros.filter(r=>normaliza(r.ATENDENTE)===normaliza(usuario.nome)) : leadRegistros;
+
+  const fl = {};
+  document.querySelectorAll('[data-fl]').forEach(el=>{if(el.value)fl[el.dataset.fl]=normaliza(el.value)});
+  const atF = $('fLeadAtend').value;
+  // opções do filtro de Info a partir dos dados
+  const infos = new Set();
+  base.forEach(r=>{if(String(r.ATENDENTE||'').trim())infos.add(r.ATENDENTE.trim())});
+  $('fLeadAtend').innerHTML = '<option value="">Todos</option><option value="__SEM__" '+(atF==='__SEM__'?'selected':'')+'>(sem info)</option>'+
+    [...infos].sort().map(n=>`<option ${n===atF?'selected':''}>${esc(n)}</option>`).join('');
+
+  const visiveis = base.filter(r=>{
+    if(atF==='__SEM__'){ if(String(r.ATENDENTE||'').trim()) return false; }
+    else if(atF && normaliza(r.ATENDENTE)!==normaliza(atF)) return false;
+    return Object.entries(fl).every(([c,v])=>normaliza(c==='DATA'?dataBR(r.DATA):r[c]).includes(v));
+  });
+  visiveis.sort((a,b)=>(chaveData(a.DATA)+' '+chaveCriado(a.CRIADO_EM)).localeCompare(chaveData(b.DATA)+' '+chaveCriado(b.CRIADO_EM)));
+
+  $('corpoLead').innerHTML = visiveis.map(r=>{
+    return `<tr class="${r.ATENDENTE?'st-verde':''}">
+      <td style="text-align:center"><input type="checkbox" ${leadSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleLeadSel('${r.ID}',this.checked)" ${estag?'disabled':''}></td>
+      <td>${esc(dataBR(r.DATA))}</td>
+      <td><b>${esc(r.NOME)}</b></td>
+      <td>${esc(r.TELEFONE)}</td>
+      <td>${esc(r.EMPRESA)}</td>
+      <td>${esc(r.ATENDENTE||'')}</td>
+      <td class="acao">
+        ${estag?'':`<button class="btn btn-mini btn-borda" onclick="abrirEditarLead('${r.ID}')">Editar</button>
+        <button class="btn btn-mini btn-perigo" onclick="excluirLead('${r.ID}')">Excluir</button>`}
+      </td>
+    </tr>`}).join('');
+  $('vazioLead').style.display = visiveis.length?'none':'block';
+  // passivo: leads sem info definida
+  $('contLead').textContent = leadRegistros.filter(r=>!String(r.ATENDENTE||'').trim()).length;
+  atualizarBtnAtribuir();
+  const todosVis = visiveis.length && visiveis.every(r=>leadSel.has(r.ID));
+  const chkTodos = $('leadSelTodos'); if(chkTodos) chkTodos.checked = !!todosVis;
+}
+
+function limparFiltrosLead(){
+  document.querySelectorAll('[data-fl]').forEach(el=>el.value='');
+  $('fLeadAtend').value='';
+  renderLeads();
+}
+function atualizarBtnAtribuir(){
+  $('btnAtribuir').textContent = 'Atribuir aos selecionados ('+leadSel.size+')';
+}
+function toggleLeadSel(id,marcado){
+  if(marcado)leadSel.add(id);else leadSel.delete(id);
+  atualizarBtnAtribuir();
+}
+function selTodosLeads(marcado){
+  // aplica aos visíveis na tabela
+  document.querySelectorAll('#corpoLead input[type=checkbox]').forEach(chk=>{
+    chk.checked = marcado;
+  });
+  // recalcula a partir das linhas renderizadas
+  const idsVisiveis = [...document.querySelectorAll('#corpoLead tr')].map(tr=>{
+    const btn = tr.querySelector('[onclick^="abrirEditarLead"]');
+    const m = btn && btn.getAttribute('onclick').match(/'(.+)'/);
+    return m?m[1]:null;
+  }).filter(Boolean);
+  idsVisiveis.forEach(id=>{if(marcado)leadSel.add(id);else leadSel.delete(id)});
+  atualizarBtnAtribuir();
+}
+
+function infoValida(v){
+  const n = normaliza(v);
+  if(n==='ROBO')return 'ROBO';
+  if(n==='ESTAGIARIO')return 'ESTAGIÁRIO';
+  return null;
+}
+
+async function atribuirLeadsSel(){
+  const atendente = infoValida($('leadAtendente').value);
+  if(!leadSel.size){toast('Marque ao menos um lead na lista');return}
+  if(!atendente){toast('A Info aceita apenas ROBO ou ESTAGIÁRIO');return}
+  if(!confirm('Marcar '+leadSel.size+' lead(s) como '+atendente+'?'))return;
+  loading(true,'Atribuindo…');
+  const resp = await apiPost({action:'atribuirLeads',ids:[...leadSel],atendente});
+  loading(false);
+  if(resp.ok){
+    leadRegistros.forEach(r=>{if(leadSel.has(r.ID))r.ATENDENTE=atendente});
+    leadSel.clear();
+    renderLeads();
+    toast(resp.total+' lead(s) atribuídos a '+atendente);
+  }else toast('Erro: '+resp.erro);
+}
+
+function abrirEditarLote(){
+  if(!leadSel.size){toast('Marque ao menos um lead na lista');return}
+  $('loteTitulo').textContent = 'Editar '+leadSel.size+' selecionado(s)';
+  ['lote_DATA','lote_INFO','lote_EMPRESA','lote_ESTAG'].forEach(id=>$(id).value='');
+  $('mLeadLote').classList.add('aberto');
+}
+
+async function salvarEditarLote(){
+  const campos = {};
+  const d = $('lote_DATA').value, e = $('lote_EMPRESA').value.trim(), i = $('lote_INFO').value.trim(), es = $('lote_ESTAG').value.trim();
+  if(d) campos.DATA = dataBR(d);
+  if(e) campos.EMPRESA = e;
+  if(es){
+    const nomeEstag = estagValido(es);
+    if(!nomeEstag){toast('Estagiário não encontrado: cadastre-o em Usuários com o tipo ESTAGIÁRIO');return}
+    campos.ATENDENTE = nomeEstag; // leads já enviados não são reenviados (envio único)
+  }else if(i){
+    const info = infoValida(i);
+    if(!info){toast('A Info aceita apenas ROBO ou ESTAGIÁRIO');return}
+    campos.ATENDENTE = info;
+  }
+  if(!Object.keys(campos).length){toast('Preencha ao menos um campo para alterar');return}
+  if(!confirm('Aplicar as alterações a '+leadSel.size+' lead(s)?'))return;
+  loading(true,'Alterando '+leadSel.size+' lead(s)…');
+  const resp = await apiPost({action:'editarLeadsLote',ids:[...leadSel],campos});
+  loading(false);
+  if(resp.ok){
+    fecharModal('mLeadLote');
+    toast(resp.total+' lead(s) alterados');
+    leadSel.clear();
+    await carregar(); // recarrega: se a Info virou ESTAGIÁRIO, a distribuição já aconteceu
+  }else toast('Erro: '+resp.erro);
+}
+
+async function excluirLeadsSel(){
+  if(!leadSel.size){toast('Marque ao menos um lead na lista');return}
+  if(!confirm('Excluir '+leadSel.size+' lead(s) selecionado(s)? Esta ação não pode ser desfeita.'))return;
+  loading(true,'Excluindo '+leadSel.size+' lead(s)…');
+  const resp = await apiPost({action:'excluirLeadsLote',ids:[...leadSel]});
+  loading(false);
+  if(resp.ok){
+    leadRegistros = leadRegistros.filter(r=>!leadSel.has(r.ID));
+    leadSel.clear();
+    renderLeads();
+    toast(resp.total+' lead(s) excluídos');
+  }else toast('Erro: '+resp.erro);
+}
+
+function abrirNovoLead(){
+  leadEditId = null;
+  $('leadTitulo').textContent = 'Novo lead';
+  ['ld_NOME','ld_TELEFONE','ld_EMPRESA','ld_ATENDENTE','ld_ESTAG'].forEach(id=>$(id).value='');
+  $('ld_DATA').value = new Date().toISOString().slice(0,10);
+  $('mLead').classList.add('aberto');
+  setTimeout(()=>$('ld_NOME').focus(),100);
+}
+function abrirEditarLead(id){
+  const r = leadRegistros.find(x=>x.ID===id);
+  if(!r)return;
+  leadEditId = id;
+  $('leadTitulo').textContent = 'Editar — '+(r.NOME||'');
+  $('ld_NOME').value=r.NOME||'';$('ld_TELEFONE').value=r.TELEFONE||'';
+  $('ld_EMPRESA').value=r.EMPRESA||'';$('ld_ATENDENTE').value=r.ATENDENTE||'';
+  $('ld_ESTAG').value='';
+  $('ld_DATA').value = dataISO(r.DATA)||'';
+  $('mLead').classList.add('aberto');
+}
+async function salvarLead(){
+  const reg = {
+    NOME:$('ld_NOME').value.trim(),
+    TELEFONE:$('ld_TELEFONE').value.trim(),
+    EMPRESA:$('ld_EMPRESA').value.trim(),
+    DATA:dataBR($('ld_DATA').value),
+    ATENDENTE:$('ld_ATENDENTE').value.trim()
+  };
+  if(!reg.NOME){toast('Informe o nome');return}
+  const esDireto = $('ld_ESTAG').value.trim();
+  if(esDireto){
+    const nomeEstag = estagValido(esDireto);
+    if(!nomeEstag){toast('Estagiário não encontrado: cadastre-o em Usuários com o tipo ESTAGIÁRIO');return}
+    reg.ATENDENTE = nomeEstag; // leads já enviados não são reenviados (envio único)
+  }else{
+    if(reg.ATENDENTE && !infoValida(reg.ATENDENTE) && !leadEditId && !estagValido(reg.ATENDENTE)){toast('A Info aceita apenas ROBO ou ESTAGIÁRIO');return}
+    if(reg.ATENDENTE && infoValida(reg.ATENDENTE)) reg.ATENDENTE = infoValida(reg.ATENDENTE);
+  }
+  if(leadEditId)reg.ID=leadEditId;
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvarLead',registro:reg});
+  loading(false);
+  if(resp.ok){
+    if(esDireto){
+      fecharModal('mLead');
+      toast('Lead endereçado a '+reg.ATENDENTE+' — envio automático em dia útil, respeitando 15/dia');
+      await carregar();
+      return;
+    }
+    if(leadEditId){
+      const r=leadRegistros.find(x=>x.ID===leadEditId);
+      if(r)Object.assign(r,reg);
+      toast('Lead atualizado');
+    }else{
+      reg.ID=resp.id;
+      reg.CRIADO_EM=new Date().toLocaleDateString('pt-BR')+' '+new Date().toTimeString().slice(0,5);
+      leadRegistros.push(reg);
+      toast('Lead criado');
+    }
+    renderLeads();
+    fecharModal('mLead');
+  }else toast('Erro: '+resp.erro);
+}
+async function excluirLead(id){
+  const r=leadRegistros.find(x=>x.ID===id);
+  if(!confirm('Excluir o lead '+(r?r.NOME:'')+'?'))return;
+  loading(true,'Excluindo…');
+  const resp = await apiPost({action:'excluirLead',id});
+  loading(false);
+  if(resp.ok){leadRegistros=leadRegistros.filter(x=>x.ID!==id);leadSel.delete(id);renderLeads();toast('Excluído')}
+  else toast('Erro: '+resp.erro);
+}
+
+function importarLeads(input){
+  const file=input.files[0]; input.value='';
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wb=XLSX.read(e.target.result,{type:'array'});
+    const linhas=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''})
+      .filter(l=>l.some(c=>String(c).trim()!==''));
+    if(!linhas.length){toast('Arquivo vazio');return}
+    // detecta cabeçalho e a posição de cada coluna (INFO = ROBO/ESTAGIÁRIO)
+    const cab = linhas[0].map(normaliza);
+    let idx = {NOME:0,TELEFONE:1,EMPRESA:2,DATA:3,INFO:4};
+    let temCab = false;
+    ['NOME','TELEFONE','EMPRESA','DATA','INFO'].forEach(c=>{
+      const p = cab.findIndex(x=>x===c||x.includes(c));
+      if(p>=0){idx[c]=p;temCab=true}
+    });
+    // a coluna de Info também é reconhecida por outros nomes ou pelo conteúdo
+    if(cab.findIndex(x=>x==='INFO'||x.includes('INFO'))<0){
+      const pAlt = cab.findIndex(x=>x.includes('ATENDENTE')||x.includes('ROBO')||x.includes('ESTAG'));
+      if(pAlt>=0){idx.INFO=pAlt;temCab=true}
+      else{
+        // sem cabeçalho de Info: procura a coluna cujos valores são ROBO/ESTAGIÁRIO
+        const pConteudo = (linhas[0]||[]).findIndex((_,i)=>
+          linhas.some(l=>{const n=normaliza(l[i]);return n==='ROBO'||n==='ESTAGIARIO'}));
+        if(pConteudo>=0)idx.INFO=pConteudo;
+      }
+    }
+    const dados = (temCab?linhas.slice(1):linhas).filter(l=>String(l[idx.NOME]||'').trim());
+    if(!dados.length){toast('Nenhuma linha com nome preenchido');return}
+    const regs = dados.map(l=>({
+      NOME:String(l[idx.NOME]||'').trim(),
+      TELEFONE:String(l[idx.TELEFONE]||'').trim(),
+      EMPRESA:String(l[idx.EMPRESA]||'').trim(),
+      DATA:String(l[idx.DATA]||'').trim(),
+      ATENDENTE:infoValida(l[idx.INFO])||''
+    }));
+    const nEst = regs.filter(r=>r.ATENDENTE==='ESTAGIÁRIO').length;
+    const nRobo = regs.filter(r=>r.ATENDENTE==='ROBO').length;
+    if(!confirm('Importar '+regs.length+' lead(s)?'+
+      (nEst||nRobo?'\n\nInfo detectada: '+nEst+' ESTAGIÁRIO · '+nRobo+' ROBO'+
+      (nEst?'\nOs de ESTAGIÁRIO serão distribuídos automaticamente (até 15/dia por estagiário) na aba Atendimentos.':'')
+      :'\n\nAtenção: nenhuma coluna de Info (ROBO/ESTAGIÁRIO) foi encontrada na planilha.')))return;
+    (async()=>{
+      loading(true,'Importando '+regs.length+' leads…');
+      const resp = await apiPost({action:'salvarLeadsLote',registros:regs});
+      loading(false);
+      if(resp.ok){toast(resp.total+' leads importados');await carregar()}
+      else toast('Erro: '+resp.erro);
+    })();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ===================== agendamentos ===================== */
+let agRegistros = [];
+
+function agDataReg(r){
+  if(r.DATA) return r.DATA; // mm/aaaa
+  const m = String(r.CRIADO_EM||'').match(/\d{2}\/(\d{2})\/(\d{4})/);
+  return m ? m[1]+'/'+m[2] : '';
+}
+function renderAgendamentos(){
+  const fg = {};
+  document.querySelectorAll('[data-fg]').forEach(el=>{if(el.value)fg[el.dataset.fg]=normaliza(el.value)});
+  const stFiltro = $('fAgStatus').value;
+  const mesAg = $('filtroMesAg').value; // aaaa-mm
+  const visiveis = agRegistros.filter(r=>{
+    const dReg = agDataReg(r); // mm/aaaa
+    if(mesAg && dReg !== mesAg.slice(5,7)+'/'+mesAg.slice(0,4)) return false;
+    if(stFiltro && normaliza(r.STATUS)!==normaliza(stFiltro)) return false;
+    return Object.entries(fg).every(([c,v])=>
+      c==='__DATA__' ? normaliza(dReg).includes(v) : normaliza(r[c]).includes(v));
+  });
+
+  // opções de status: AGENDADO + os que vieram das importações
+  const statusSet = new Set(['AGENDADO']);
+  agRegistros.forEach(r=>{if(String(r.STATUS||'').trim())statusSet.add(String(r.STATUS).trim().toUpperCase())});
+  const selF = $('fAgStatus');
+  const atualF = selF.value;
+  selF.innerHTML = '<option value="">Todos</option>'+[...statusSet].sort().map(s=>`<option ${s===atualF?'selected':''}>${esc(s)}</option>`).join('');
+
+  visiveis.sort((a,b)=>chaveCriado(a.CRIADO_EM).localeCompare(chaveCriado(b.CRIADO_EM)));
+  $('corpoAgend').innerHTML = visiveis.map(r=>{
+    const ag = normaliza(r.STATUS)==='AGENDADO';
+    const opcoes = [...statusSet].sort().map(s=>`<option ${normaliza(r.STATUS)===normaliza(s)?'selected':''}>${esc(s)}</option>`).join('');
+    return `<tr class="${ag?'st-verde':''}">
+      <td>${esc(agDataReg(r))}</td>
+      <td><b>${esc(r.NOME)}</b></td>
+      <td>${esc(r.TELEFONE)}</td>
+      <td>${esc(r.EMPRESA)}</td>
+      <td>
+        <select onchange="agMudaStatus('${r.ID}',this.value)">
+          <option value=""></option>${opcoes}
+        </select>
+      </td>
+      <td style="min-width:220px" id="agSlot_${r.ID}">
+        ${ag && r.AGENDA_DATA ? `<b>${esc(dataBR(r.AGENDA_DATA))}</b> às <b>${esc(r.AGENDA_HORA)}</b>` : `
+          <span style="display:${ag?'inline-flex':'none'};gap:4px;align-items:center;flex-wrap:wrap">
+            <input type="date" class="ap-input" id="agData_${r.ID}" onchange="agBuscarDisponiveis('${r.ID}')">
+            <input type="time" step="1800" style="width:95px" id="agHora_${r.ID}" onchange="agBuscarDisponiveis('${r.ID}')">
+            <select id="agAdv_${r.ID}" style="display:none;max-width:170px" title="Advogado do atendimento"></select>
+            <button class="btn btn-mini btn-principal" onclick="agendarCliente('${r.ID}')">Agendar</button>
+          </span>`}
+      </td>
+      <td>${esc(r.ADVOGADO||'')}</td>
+      <td class="acao">
+        <button class="btn btn-mini btn-borda" onclick="abrirEditarAgendamento('${r.ID}')">Editar</button>
+        ${ag && r.AGENDA_DATA ? `<button class="btn btn-mini btn-borda" onclick="agRemarcar('${r.ID}')" title="Escolher outro dia/horário">Remarcar</button>`:''}
+        <button class="btn btn-mini btn-perigo" onclick="excluirAgendamento('${r.ID}')">Excluir</button>
+      </td>
+    </tr>`}).join('');
+  $('vazioAgend').style.display = visiveis.length?'none':'block';
+  $('contAgend').textContent = agRegistros.filter(r=>normaliza(r.STATUS)!=='AGENDADO').length; // passivo: não agendados
+}
+function limparFiltrosAg(){
+  document.querySelectorAll('[data-fg]').forEach(el=>el.value='');
+  $('fAgStatus').value='';
+  renderAgendamentos();
+}
+
+let agEditId = null;
+
+function agBuscarLead(termo){
+  const box = $('agBuscaRes');
+  termo = normaliza(termo);
+  if(termo.length<2){box.style.display='none';box.innerHTML='';return}
+  const achados = leadRegistros
+    .filter(r=>normaliza(r.NOME).includes(termo)||normaliza(r.TELEFONE).includes(termo))
+    .slice(0,8);
+  if(!achados.length){
+    box.innerHTML = '<div style="padding:8px 10px;font-size:12.5px;color:var(--cinza)">Nenhum lead encontrado</div>';
+    box.style.display='block';return;
+  }
+  box.innerHTML = achados.map(r=>
+    `<div onclick="agUsarLead('${r.ID}')" style="padding:8px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--linha)" onmouseover="this.style.background='#f4f1ea'" onmouseout="this.style.background=''">
+      <b>${esc(r.NOME)}</b><br><small style="color:var(--cinza)">${esc(r.TELEFONE||'')}${r.EMPRESA?' · '+esc(r.EMPRESA):''}${r.ATENDENTE?' · '+esc(r.ATENDENTE):''}</small>
+    </div>`).join('');
+  box.style.display='block';
+}
+function agUsarLead(id){
+  const r = leadRegistros.find(x=>x.ID===id);
+  if(!r)return;
+  $('agN_NOME').value = r.NOME||'';
+  $('agN_TELEFONE').value = r.TELEFONE||'';
+  $('agN_EMPRESA').value = r.EMPRESA||'';
+  $('agN_BUSCA').value = r.NOME||'';
+  $('agBuscaRes').style.display='none';
+  toast('Dados do lead preenchidos');
+}
+
+function abrirNovoAgendamento(){
+  agEditId = null;
+  $('agNovoTitulo').textContent = 'Novo agendamento';
+  ['agN_NOME','agN_TELEFONE','agN_EMPRESA','agN_BUSCA'].forEach(id=>$(id).value='');
+  $('agBuscaRes').style.display='none';
+  const hoje = new Date();
+  $('agN_DATA').value = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
+  $('mAgNovo').classList.add('aberto');
+  setTimeout(()=>$('agN_NOME').focus(),100);
+}
+
+function abrirEditarAgendamento(id){
+  const r = agRegistros.find(x=>x.ID===id);
+  if(!r)return;
+  agEditId = id;
+  $('agNovoTitulo').textContent = 'Editar — '+(r.NOME||'');
+  $('agN_BUSCA').value='';$('agBuscaRes').style.display='none';
+  $('agN_NOME').value = r.NOME||'';
+  $('agN_TELEFONE').value = r.TELEFONE||'';
+  $('agN_EMPRESA').value = r.EMPRESA||'';
+  const d = agDataReg(r); // mm/aaaa
+  $('agN_DATA').value = d ? d.slice(3,7)+'-'+d.slice(0,2) : '';
+  $('mAgNovo').classList.add('aberto');
+}
+
+async function salvarNovoAgendamento(){
+  const mes = $('agN_DATA').value; // aaaa-mm
+  const reg = {
+    NOME: $('agN_NOME').value.trim(),
+    TELEFONE: $('agN_TELEFONE').value.trim(),
+    EMPRESA: $('agN_EMPRESA').value.trim(),
+    DATA: mes ? mes.slice(5,7)+'/'+mes.slice(0,4) : ''
+  };
+  if(!reg.NOME){toast('Informe o nome');return}
+  if(agEditId) reg.ID = agEditId;
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvarAgendamento',registro:reg});
+  loading(false);
+  if(resp.ok){
+    if(agEditId){
+      const r = agRegistros.find(x=>x.ID===agEditId);
+      if(r) Object.assign(r,reg);
+      toast('Agendamento atualizado');
+    }else{
+      reg.ID = resp.id;
+      reg.CRIADO_EM = new Date().toLocaleDateString('pt-BR')+' '+new Date().toTimeString().slice(0,5);
+      agRegistros.push(reg);
+      toast('Agendamento criado — selecione o status quando fizer o contato');
+    }
+    renderAgendamentos();
+    fecharModal('mAgNovo');
+  }else toast('Erro: '+resp.erro);
+}
+
+async function agMudaStatus(id,valor){
+  const r = agRegistros.find(x=>x.ID===id);
+  if(normaliza(valor)==='AGENDADO'){
+    // abre os campos de data/horário; o agendamento em si acontece no botão Agendar
+    if(r){r.STATUS='AGENDADO';}
+    renderAgendamentos();
+    return;
+  }
+  loading(true,'Salvando…');
+  const resp = await apiPost({action:'salvarAgendamento',registro:{ID:id,STATUS:valor,AGENDA_DATA:'',AGENDA_HORA:'',ADVOGADO:''}});
+  loading(false);
+  if(resp.ok){if(r){r.STATUS=valor;r.AGENDA_DATA='';r.AGENDA_HORA='';r.ADVOGADO=''}renderAgendamentos();toast('Status salvo')}
+  else toast('Erro: '+resp.erro);
+}
+
+async function agBuscarDisponiveis(id){
+  const data = dataBR($('agData_'+id).value);
+  const hora = ($('agHora_'+id).value||'').slice(0,5);
+  const sel = $('agAdv_'+id);
+  sel.style.display='none';
+  if(!data||!hora) return;
+  loading(true,'Consultando advogados disponíveis…');
+  const resp = await apiPost({action:'advogadosDisponiveis',id,data,hora});
+  loading(false);
+  if(resp.ok){
+    sel.innerHTML = '<option value="">AUTOMÁTICO ('+esc(resp.advogados[0])+')</option>'+
+      resp.advogados.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    sel.style.display='inline-block';
+  }else{
+    toast(resp.erro);
+  }
+}
+
+async function agendarCliente(id){
+  const data = dataBR($('agData_'+id).value);
+  const hora = $('agHora_'+id).value;
+  if(!data||!hora){toast('Informe a data e o horário do agendamento');return}
+  const advSel = $('agAdv_'+id);
+  const advogadoEscolhido = advSel ? advSel.value : '';
+  loading(true,'Verificando agenda dos advogados…');
+  const resp = await apiPost({action:'agendarCliente',id,data,hora:hora.slice(0,5),advogado:advogadoEscolhido});
+  loading(false);
+  if(resp.ok){
+    const r = agRegistros.find(x=>x.ID===id);
+    if(r){r.STATUS='AGENDADO';r.AGENDA_DATA=data;r.AGENDA_HORA=hora.slice(0,5);r.ADVOGADO=resp.advogado}
+    renderAgendamentos();
+    toast('Cliente agendado com '+resp.advogado+' em '+data+' às '+hora.slice(0,5));
+  }else toast(resp.erro);
+}
+
+async function agRemarcar(id){
+  const r = agRegistros.find(x=>x.ID===id);
+  if(!r)return;
+  r.AGENDA_DATA='';r.AGENDA_HORA='';
+  renderAgendamentos();
+}
+
+async function excluirAgendamento(id){
+  const r = agRegistros.find(x=>x.ID===id);
+  if(!confirm('Excluir '+(r?r.NOME:'este registro')+' dos agendamentos?'))return;
+  loading(true,'Excluindo…');
+  const resp = await apiPost({action:'excluirAgendamento',id});
+  loading(false);
+  if(resp.ok){agRegistros=agRegistros.filter(x=>x.ID!==id);renderAgendamentos();toast('Excluído')}
+  else toast('Erro: '+resp.erro);
+}
+
+/* ---------- importação de agendamentos (lista e resultados) ---------- */
+let agImportModo = 'lista';
+
+function importarAgArquivo(input,modo){
+  agImportModo = modo;
+  const file = input.files[0]; input.value='';
+  if(!file)return;
+  const ext = file.name.toLowerCase().split('.').pop();
+  if(ext==='pdf'){lerPdfLinhas(file).then(l=>agPreImport(l)).catch(()=>toast('Erro ao ler o PDF'));}
+  else{
+    const reader = new FileReader();
+    reader.onload = e=>{
+      const wb = XLSX.read(e.target.result,{type:'array'});
+      const linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''});
+      agPreImport(linhas.filter(l=>l.some(c=>String(c).trim()!=='')));
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+function agPreImport(linhas){
+  if(!linhas||!linhas.length){toast('Arquivo vazio ou sem texto');return}
+  // pula o cabeçalho se a primeira linha contiver NOME
+  const primeira = linhas[0].map(normaliza);
+  const dados = (primeira.includes('NOME')?linhas.slice(1):linhas)
+    .filter(l=>String(l[0]||'').trim());
+  if(!dados.length){toast('Nenhuma linha com nome preenchido');return}
+  const regs = dados.map(l=>({
+    NOME:String(l[0]||'').trim(),
+    TELEFONE:String(l[1]||'').trim(),
+    EMPRESA:String(l[2]||'').trim(),
+    STATUS: agImportModo==='resultados'?String(l[3]||'').trim().toUpperCase():''
+  }));
+  if(agImportModo==='resultados'){
+    // conciliação: apenas preenche o status dos registros já existentes (não cria novos)
+    if(!confirm('Conciliar '+regs.length+' resultado(s) com os agendamentos existentes? Nenhum registro novo será criado.'))return;
+    (async()=>{
+      loading(true,'Conciliando resultados…');
+      const resp = await apiPost({action:'conciliarResultados',registros:regs});
+      loading(false);
+      if(resp.ok){
+        let msg = resp.atualizados+' status atualizados';
+        if(resp.naoEncontrados.length){
+          msg += ' · '+resp.naoEncontrados.length+' nome(s) não encontrados';
+          alert('Nomes não encontrados nos agendamentos (status não aplicado):\n\n- '+resp.naoEncontrados.join('\n- '));
+        }
+        toast(msg);
+        await carregar();
+      }else toast('Erro: '+resp.erro);
+    })();
+    return;
+  }
+  if(!confirm('Importar '+regs.length+' registro(s) para os Agendamentos?'))return;
+  (async()=>{
+    loading(true,'Importando '+regs.length+' registros…');
+    const resp = await apiPost({action:'salvarAgendamentosLote',registros:regs});
+    loading(false);
+    if(resp.ok){toast(resp.total+' registros importados');await carregar()}
+    else toast('Erro: '+resp.erro);
+  })();
+}
+
+// extração de linhas/colunas de PDF (compartilhada)
+async function lerPdfLinhas(file){
+  loading(true,'Lendo PDF…');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf = await file.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({data:buf}).promise;
+  const linhas = [];
+  for(let p=1;p<=doc.numPages;p++){
+    const pg = await doc.getPage(p);
+    const tc = await pg.getTextContent();
+    const mapa = {};
+    tc.items.forEach(it=>{
+      const y = Math.round(it.transform[5]/3)*3;
+      (mapa[y]=mapa[y]||[]).push({x:it.transform[4],t:it.str});
+    });
+    Object.keys(mapa).map(Number).sort((a,b)=>b-a).forEach(y=>{
+      const itens = mapa[y].sort((a,b)=>a.x-b.x);
+      const cels=[]; let atual=''; let fimX=null;
+      itens.forEach(it=>{
+        if(fimX!==null && it.x-fimX>18){cels.push(atual.trim());atual=''}
+        atual+=(atual?' ':'')+it.t;
+        fimX=it.x+it.t.length*5;
+      });
+      if(atual.trim())cels.push(atual.trim());
+      if(cels.length)linhas.push(cels);
+    });
+  }
+  loading(false);
+  return linhas;
+}
+
+/* ===================== agenda (calendário semanal) ===================== */
+let agSemana = null;       // Date da segunda-feira da semana exibida
+let agendaDados = {disponibilidade:[],agendados:[]};
+
+const AG_HORAS = (()=>{const h=[];for(let m=8*60;m<18*60;m+=30){h.push(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'))}return h})();
+const AG_DIAS = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+
+function inicioSemana(d){
+  const x = new Date(d); const dia = (x.getDay()+6)%7; // 0=segunda
+  x.setDate(x.getDate()-dia); x.setHours(0,0,0,0); return x;
+}
+function fmtData(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()}
+
+function advogadoAtual(){
+  if(usuario && usuario.master){return $('agAdvSel').value}
+  return usuario ? usuario.nome : '';
+}
+
+function mudarSemana(n){
+  agSemana.setDate(agSemana.getDate()+7*n);
+  renderAgenda();
+}
+
+async function carregarAgenda(){
+  if(!agSemana) agSemana = inicioSemana(new Date());
+  if(usuario && usuario.master){
+    $('agAdvBox').style.display='inline-flex';
+    await atualizarListaAdvogados();
+  }
+  loading(true,'Carregando agenda…');
+  const resp = await apiPost({action:'listarAgenda',advogado: usuario.master ? '' : usuario.nome});
+  loading(false);
+  if(resp.ok){agendaDados = resp; renderAgenda();}
+  else toast('Erro: '+resp.erro);
+}
+
+async function atualizarListaAdvogados(){
+  const r = await apiPost({action:'listarAdvogados'});
+  if(!r.ok) return;
+  const atual = $('agAdvSel').value;
+  $('agAdvSel').innerHTML = r.advogados.map(n=>`<option ${n===atual?'selected':''}>${esc(n)}</option>`).join('')
+    || '<option value="">(nenhum advogado cadastrado)</option>';
+}
+
+async function adicionarAdvogadoAg(){
+  const nome = $('novoAdvNome').value.trim();
+  if(!nome){toast('Digite o nome do advogado');return}
+  loading(true,'Salvando…');
+  const r = await apiPost({action:'salvarAdvogado',senhaMaster:usuario.senha,nome});
+  loading(false);
+  if(r.ok){
+    $('novoAdvNome').value='';
+    const atual = nome;
+    $('agAdvSel').innerHTML = r.advogados.map(n=>`<option ${n===atual?'selected':''}>${esc(n)}</option>`).join('');
+    renderAgenda();
+    toast('Advogado adicionado. Dica: crie em Usuários um login com o MESMO nome para que ele acesse apenas esta agenda.');
+  }else toast(r.erro);
+}
+
+async function excluirAdvogadoAg(){
+  const nome = $('agAdvSel').value;
+  if(!nome){toast('Selecione o advogado');return}
+  if(!confirm('Excluir o advogado '+nome+' e toda a disponibilidade da agenda dele?'))return;
+  loading(true,'Excluindo…');
+  const r = await apiPost({action:'excluirAdvogado',senhaMaster:usuario.senha,nome});
+  loading(false);
+  if(r.ok){
+    $('agAdvSel').innerHTML = r.advogados.map(n=>`<option>${esc(n)}</option>`).join('') || '<option value="">(nenhum advogado cadastrado)</option>';
+    agendaDados.disponibilidade = agendaDados.disponibilidade.filter(d=>d.advogado!==nome);
+    renderAgenda();
+    toast('Advogado excluído');
+  }else toast(r.erro);
+}
+
+function renderAgenda(){
+  const adv = advogadoAtual();
+  const dias = AG_DIAS.map((_,i)=>{const d=new Date(agSemana);d.setDate(d.getDate()+i);return d});
+  $('agSemanaLabel').textContent = fmtData(dias[0])+' a '+fmtData(dias[5]);
+  const dispSet = new Set(agendaDados.disponibilidade.filter(d=>d.advogado===adv).map(d=>d.data+'|'+d.hora));
+  const ocupMapa = {};
+  agendaDados.agendados.filter(a=>a.ADVOGADO===adv).forEach(a=>{ocupMapa[a.AGENDA_DATA+'|'+a.AGENDA_HORA]=a});
+
+  let htmlTab = '<thead><tr><th>Hora</th>'+
+    dias.map((d,i)=>`<th class="dia-click" onclick="marcarDia(${i})" title="Clique para marcar/desmarcar o dia inteiro">${AG_DIAS[i]}<br><small style="font-weight:400">${fmtData(d).slice(0,5)}</small></th>`).join('')+'</tr></thead><tbody>';
+  AG_HORAS.forEach((h,hi)=>{
+    htmlTab += `<tr><td class="hora" onclick="marcarHora(${hi})" title="Clique para marcar/desmarcar este horário na semana toda">${h}</td>`;
+    dias.forEach((d,di)=>{
+      const chave = fmtData(d)+'|'+h;
+      const ocup = ocupMapa[chave];
+      if(ocup){
+        htmlTab += `<td><div class="ag-cel ag-ocupado" title="${esc(ocup.NOME)} · ${esc(ocup.TELEFONE)} · ${esc(ocup.EMPRESA)}"><b>${esc(ocup.NOME)}</b><small>${esc(ocup.TELEFONE)}${ocup.EMPRESA?' · '+esc(ocup.EMPRESA):''}</small></div></td>`;
+      }else if(dispSet.has(chave)){
+        htmlTab += `<td><div class="ag-cel ag-livre" data-di="${di}" data-hi="${hi}" title="Disponível — clique ou arraste para desmarcar">&#10003;</div></td>`;
+      }else{
+        htmlTab += `<td><div class="ag-cel" data-di="${di}" data-hi="${hi}" title="Clique ou arraste para marcar como disponível">&nbsp;</div></td>`;
+      }
+    });
+    htmlTab += '</tr>';
+  });
+  $('tabAgenda').innerHTML = htmlTab+'</tbody>';
+}
+
+/* ---------- seleção por arrasto ---------- */
+let agDrag = null; // {di0,hi0,di1,hi1,adicionar}
+
+function agDiasSemana(){
+  return AG_DIAS.map((_,i)=>{const d=new Date(agSemana);d.setDate(d.getDate()+i);return fmtData(d)});
+}
+function slotsDoRetangulo(){
+  const datas = agDiasSemana();
+  const adv = advogadoAtual();
+  const dispSet = new Set(agendaDados.disponibilidade.filter(d=>d.advogado===adv).map(d=>d.data+'|'+d.hora));
+  const ocupSet = new Set(agendaDados.agendados.filter(a=>a.ADVOGADO===adv).map(a=>a.AGENDA_DATA+'|'+a.AGENDA_HORA));
+  const [d0,d1]=[Math.min(agDrag.di0,agDrag.di1),Math.max(agDrag.di0,agDrag.di1)];
+  const [h0,h1]=[Math.min(agDrag.hi0,agDrag.hi1),Math.max(agDrag.hi0,agDrag.hi1)];
+  const slots=[];
+  for(let di=d0;di<=d1;di++)for(let hi=h0;hi<=h1;hi++){
+    const chave = datas[di]+'|'+AG_HORAS[hi];
+    if(ocupSet.has(chave)) continue; // não mexe em horário com cliente
+    if(agDrag.adicionar && dispSet.has(chave)) continue;
+    if(!agDrag.adicionar && !dispSet.has(chave)) continue;
+    slots.push({data:datas[di],hora:AG_HORAS[hi]});
+  }
+  return slots;
+}
+function agDestacar(){
+  const [d0,d1]=[Math.min(agDrag.di0,agDrag.di1),Math.max(agDrag.di0,agDrag.di1)];
+  const [h0,h1]=[Math.min(agDrag.hi0,agDrag.hi1),Math.max(agDrag.hi0,agDrag.hi1)];
+  document.querySelectorAll('#tabAgenda [data-di]').forEach(el=>{
+    const di=+el.dataset.di, hi=+el.dataset.hi;
+    el.classList.toggle('ag-sel', di>=d0&&di<=d1&&hi>=h0&&hi<=h1);
+  });
+}
+
+async function aplicarDispLote(slots,disponivel){
+  const adv = advogadoAtual();
+  if(!adv){toast('Selecione o advogado');return}
+  if(!slots.length){renderAgenda();return}
+  loading(true,'Salvando '+slots.length+' horário(s)…');
+  const resp = await apiPost({action:'setDispLote',advogado:adv,slots,disponivel});
+  loading(false);
+  if(resp.ok){
+    if(disponivel){
+      slots.forEach(s=>agendaDados.disponibilidade.push({advogado:adv,data:s.data,hora:s.hora}));
+    }else{
+      const rem = new Set(slots.map(s=>s.data+'|'+s.hora));
+      agendaDados.disponibilidade = agendaDados.disponibilidade.filter(d=>!(d.advogado===adv && rem.has(d.data+'|'+d.hora)));
+    }
+    renderAgenda();
+    toast(slots.length+' horário(s) '+(disponivel?'disponíveis':'removidos'));
+  }else toast('Erro: '+resp.erro);
+}
+
+function marcarDia(di){
+  const datas = agDiasSemana();
+  const adv = advogadoAtual();
+  const dispSet = new Set(agendaDados.disponibilidade.filter(d=>d.advogado===adv).map(d=>d.data+'|'+d.hora));
+  const ocupSet = new Set(agendaDados.agendados.filter(a=>a.ADVOGADO===adv).map(a=>a.AGENDA_DATA+'|'+a.AGENDA_HORA));
+  const livres = AG_HORAS.filter(h=>!ocupSet.has(datas[di]+'|'+h));
+  const faltantes = livres.filter(h=>!dispSet.has(datas[di]+'|'+h));
+  const adicionar = faltantes.length>0; // se ainda falta algum, marca o dia; senão, desmarca
+  const slots = (adicionar?faltantes:livres.filter(h=>dispSet.has(datas[di]+'|'+h))).map(h=>({data:datas[di],hora:h}));
+  aplicarDispLote(slots,adicionar);
+}
+
+function marcarHora(hi){
+  const datas = agDiasSemana();
+  const adv = advogadoAtual();
+  const h = AG_HORAS[hi];
+  const dispSet = new Set(agendaDados.disponibilidade.filter(d=>d.advogado===adv).map(d=>d.data+'|'+d.hora));
+  const ocupSet = new Set(agendaDados.agendados.filter(a=>a.ADVOGADO===adv).map(a=>a.AGENDA_DATA+'|'+a.AGENDA_HORA));
+  const livres = datas.filter(dt=>!ocupSet.has(dt+'|'+h));
+  const faltantes = livres.filter(dt=>!dispSet.has(dt+'|'+h));
+  const adicionar = faltantes.length>0;
+  const slots = (adicionar?faltantes:livres.filter(dt=>dispSet.has(dt+'|'+h))).map(dt=>({data:dt,hora:h}));
+  aplicarDispLote(slots,adicionar);
+}
+
+function marcarSemana(disponivel){
+  const datas = agDiasSemana();
+  const adv = advogadoAtual();
+  const dispSet = new Set(agendaDados.disponibilidade.filter(d=>d.advogado===adv).map(d=>d.data+'|'+d.hora));
+  const ocupSet = new Set(agendaDados.agendados.filter(a=>a.ADVOGADO===adv).map(a=>a.AGENDA_DATA+'|'+a.AGENDA_HORA));
+  const slots=[];
+  datas.forEach(dt=>AG_HORAS.forEach(h=>{
+    const chave = dt+'|'+h;
+    if(ocupSet.has(chave)) return;
+    if(disponivel && !dispSet.has(chave)) slots.push({data:dt,hora:h});
+    if(!disponivel && dispSet.has(chave)) slots.push({data:dt,hora:h});
+  }));
+  if(!slots.length){toast(disponivel?'A semana já está toda disponível':'Não há horários para remover');return}
+  aplicarDispLote(slots,disponivel);
+}
+
+// eventos de arrasto na grade da agenda (clique único = arrasto de 1 célula)
+document.addEventListener('mousedown',e=>{
+  const cel = e.target.closest('#tabAgenda [data-di]');
+  if(!cel)return;
+  e.preventDefault();
+  const adv = advogadoAtual();
+  if(!adv){toast('Selecione o advogado');return}
+  agDrag = {di0:+cel.dataset.di,hi0:+cel.dataset.hi,di1:+cel.dataset.di,hi1:+cel.dataset.hi,
+            adicionar: !cel.classList.contains('ag-livre')};
+  agDestacar();
+});
+document.addEventListener('mouseover',e=>{
+  if(!agDrag)return;
+  const cel = e.target.closest('#tabAgenda [data-di]');
+  if(!cel)return;
+  agDrag.di1=+cel.dataset.di; agDrag.hi1=+cel.dataset.hi;
+  agDestacar();
+});
+document.addEventListener('mouseup',()=>{
+  if(!agDrag)return;
+  const slots = slotsDoRetangulo();
+  const adicionar = agDrag.adicionar;
+  agDrag = null;
+  document.querySelectorAll('#tabAgenda .ag-sel').forEach(el=>el.classList.remove('ag-sel'));
+  aplicarDispLote(slots,adicionar);
+});
+
+/* ===================== exportação (master) ===================== */
+let dadosExport = {};
+let subAtual = 'pendentes';
+
+const EXPORT_DEFS = {
+  atendimentos: {titulo:'Atendimentos', colunas:[
+    ['DATA','Data',60],['HORARIO','Horário',45],['NOME','Nome',120],['TELEFONE','Telefone',75],
+    ['EMPRESA','Empresa',100],['RESPONSAVEL','Responsável',75],['PASTA','Pasta',50],
+    ['ADV_ATENDIMENTO','Adv. Atendimento',80],['DATA_SAIDA','Data saída',60],['STATUS','Status',95],
+    ['INDICACAO','Indicação',70],['OBSERVACOES','Observações',120]]},
+  aberturaPendentes: {titulo:'Abertura de Pasta - Em aberto', colunas:[
+    ['DATA_FECHAMENTO','Data recebido',80],['NOME','Reclamante',150],['EMPRESA','Reclamado',140],
+    ['TELEFONE','Telefone',90],['PASTA_CPJ','Nº Pasta CPJ',80],['DOC_SITUACAO','Documentação',120],
+    ['DOC_FALTANDO','Doc. faltando',130]]},
+  pastasAbertas: {titulo:'Pastas abertas', colunas:[
+    ['DATA_ABERTURA','Data abertura',85],['NOME','Reclamante',170],['EMPRESA','Reclamado',170],
+    ['TELEFONE','Telefone',100],['PASTA_CPJ','Nº Pasta CPJ',85]]},
+  iniciais: {titulo:'Iniciais para elaborar', colunas:[
+    ['DATA_ABERTURA','Data recebido',70],['NOME','Reclamante',135],['EMPRESA','Reclamado',135],
+    ['PASTA_CPJ','Nº Pasta',65],['DATA_SAIDA','Data saída',70],['INICIAL_RESP','Responsável pela inicial',100],
+    ['INICIAL_OBS','Observação',145],['INICIAL_STATUS','Status',110]]},
+  ajuizamento: {titulo:'Ajuizamento', colunas:[
+    ['DATA_FEITO','Data recebido',70],['NOME','Reclamante',140],['EMPRESA','Reclamado',140],
+    ['PASTA_CPJ','Nº Pasta',65],['DATA_SAIDA','Data saída',70],
+    ['AJUIZ_DATA','Data do ajuizamento',85],['AJUIZ_STATUS','Status',90]]}
+};
+
+function baseExport(aba){
+  if(aba==='abertura') return subAtual==='historico' ? 'pastasAbertas' : 'aberturaPendentes';
+  return aba;
+}
+
+function valorExport(r,campo){
+  if(['DATA','DATA_SAIDA','DATA_FECHAMENTO','DATA_ABERTURA','DATA_FEITO','AJUIZ_DATA'].includes(campo)) return dataBR(r[campo]);
+  if(campo==='INICIAL_STATUS') return r.INICIAL_STATUS||'PENDENTE';
+  if(campo==='AJUIZ_STATUS') return r.AJUIZ_STATUS||'NÃO AJUIZADO';
+  return String(r[campo]??'');
+}
+
+function exportarExcel(aba){
+  const chave = baseExport(aba);
+  const def = EXPORT_DEFS[chave];
+  const dados = dadosExport[chave]||[];
+  if(!dados.length){toast('Não há dados para exportar');return}
+  const linhas = dados.map(r=>{
+    const o={};
+    def.colunas.forEach(([campo,rotulo])=>o[rotulo]=valorExport(r,campo));
+    return o;
+  });
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!cols'] = def.colunas.map(c=>({wch:Math.max(12,c[1].length+4)}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, def.titulo.slice(0,31));
+  XLSX.writeFile(wb, def.titulo+' - '+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
+  toast('Excel exportado ('+dados.length+' registros)');
+}
+
+async function exportarPdfTabela(aba){
+  const chave = baseExport(aba);
+  const def = EXPORT_DEFS[chave];
+  const dados = dadosExport[chave]||[];
+  if(!dados.length){toast('Não há dados para exportar');return}
+  loading(true,'Gerando PDF…');
+  const {PDFDocument,StandardFonts,rgb} = PDFLib;
+  const pdf = await PDFDocument.create();
+  const fB = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const fN = await pdf.embedFont(StandardFonts.Helvetica);
+  const PG_W=841.89, PG_H=595.28, MG=30; // A4 paisagem
+  const totalW = def.colunas.reduce((s,c)=>s+c[2],0);
+  const escala = (PG_W-2*MG)/totalW;
+  const tam = 7.5, altura = 14;
+  const limpar = s => String(s??'').replace(/[\r\n]+/g,' ');
+  const cortar = (s,w) => {
+    s = limpar(s);
+    while(s && fN.widthOfTextAtSize(s,tam) > w-6) s = s.slice(0,-1);
+    return s;
+  };
+  let pg, y;
+  const novaPagina = () => {
+    pg = pdf.addPage([PG_W,PG_H]);
+    y = PG_H-MG;
+    pg.drawText(def.titulo+' — '+new Date().toLocaleDateString('pt-BR'),{x:MG,y:y-4,size:11,font:fB,color:rgb(.11,.16,.25)});
+    y -= 22;
+    let x = MG;
+    pg.drawRectangle({x:MG,y:y-4,width:PG_W-2*MG,height:altura,color:rgb(.11,.16,.25)});
+    def.colunas.forEach(c=>{
+      pg.drawText(cortar(c[1],c[2]*escala),{x:x+3,y:y,size:tam,font:fB,color:rgb(1,1,1)});
+      x += c[2]*escala;
+    });
+    y -= altura;
+  };
+  novaPagina();
+  dados.forEach((r,i)=>{
+    if(y < MG+altura) novaPagina();
+    if(i%2===1) pg.drawRectangle({x:MG,y:y-4,width:PG_W-2*MG,height:altura,color:rgb(.94,.95,.96)});
+    let x = MG;
+    def.colunas.forEach(c=>{
+      pg.drawText(cortar(valorExport(r,c[0]),c[2]*escala),{x:x+3,y:y,size:tam,font:fN,color:rgb(.13,.15,.17)});
+      x += c[2]*escala;
+    });
+    y -= altura;
+  });
+  const saida = await pdf.save();
+  const blob = new Blob([saida],{type:'application/pdf'});
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(blob);
+  el.download = def.titulo+' - '+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.pdf';
+  el.click();
+  loading(false);
+  toast('PDF exportado ('+dados.length+' registros)');
+}
+
+/* ===================== login / usuários ===================== */
+let usuario = null;   // {nome, master, abas:[...]}
+let listaUsuariosCache = [];
+
+async function entrar(){
+  const senha = $('loginSenha').value;
+  if(!senha){$('loginErro').textContent='Digite sua senha';return}
+  $('loginErro').textContent='';
+  loading(true,'Verificando…');
+  try{
+    const r = await apiPost({action:'login',senha});
+    loading(false);
+    if(r.ok){
+      usuario = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha, abas:String(r.abas||'').split(',').filter(Boolean)};
+      sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
+      aplicarLogin();
+    }else{
+      $('loginErro').textContent = r.erro||'Senha incorreta';
+    }
+  }catch(e){loading(false);$('loginErro').textContent='Falha de conexão'}
+}
+
+function aplicarLogin(){
+  $('telaLogin').style.display='none';
+  $('loginSenha').value='';
+  $('usuLogado').textContent = usuario.nome;
+  $('btnUsuarios').style.display = usuario.master?'inline-flex':'none';
+  document.querySelectorAll('.master-so').forEach(el=>el.style.display = usuario.master?'inline-flex':'none');
+  // abas permitidas
+  const pode = a => usuario.master || usuario.abas.includes(a);
+  document.querySelectorAll('.aba').forEach(b=>{
+    b.style.display = pode(b.dataset.aba)?'inline-flex':'none';
+  });
+  $('agAdvSel').innerHTML='';
+  const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(pode) || 'atendimentos';
+  trocarAba(primeira);
+  carregar();
+}
+
+function sair(){
+  sessionStorage.removeItem('usuarioADV');
+  usuario=null;
+  registros=[];
+  renderizar();
+  $('telaLogin').style.display='flex';
+  $('loginSenha').focus();
+}
+
+function trocarAba(nome){
+  if(usuario && !usuario.master && !usuario.abas.includes(nome)) return;
+  document.querySelectorAll('.aba').forEach(b=>b.classList.toggle('ativa',b.dataset.aba===nome));
+  document.querySelectorAll('.painel').forEach(p=>p.classList.remove('ativo'));
+  $('painel-'+nome).classList.add('ativo');
+  if(nome==='agenda') carregarAgenda();
+}
+
+async function abrirUsuarios(){
+  loading(true,'Carregando usuários…');
+  const r = await apiPost({action:'listarUsuarios',senhaMaster:usuario.senha});
+  loading(false);
+  if(!r.ok){toast(r.erro);return}
+  listaUsuariosCache = r.usuarios;
+  renderUsuarios();
+  $('mUsuarios').classList.add('aberto');
+}
+
+function renderUsuarios(){
+  $('listaUsuarios').innerHTML = listaUsuariosCache.map((u,i)=>{
+    const abas = u.abas.split(',');
+    return `<div class="usu-linha">
+      <input type="text" id="uNome_${i}" value="${esc(u.nome)}">
+      <input type="text" id="uSenha_${i}" value="${esc(u.senha)}" style="width:120px">
+      <select id="uTipo_${i}" title="Tipo do usuário">
+        <option ${['ESTAGIARIO','ATENDENTE'].includes(normaliza(u.tipo||''))?'':'selected'}>ADVOGADO</option>
+        <option ${normaliza(u.tipo||'')==='ESTAGIARIO'?'selected':''}>ESTAGIÁRIO</option>
+        <option ${normaliza(u.tipo||'')==='ATENDENTE'?'selected':''}>ATENDENTE</option>
+      </select>
+      <span class="abas-check">
+        <label><input type="checkbox" id="uLead_${i}" ${abas.includes('lead')?'checked':''}> Lead</label>
+        <label><input type="checkbox" id="uAgend_${i}" ${abas.includes('agendamentos')?'checked':''}> Agendamentos</label>
+        <label><input type="checkbox" id="uAgenda_${i}" ${abas.includes('agenda')?'checked':''}> Agenda</label>
+        <label><input type="checkbox" id="uAtend_${i}" ${abas.includes('atendimentos')?'checked':''}> Atendimentos</label>
+        <label><input type="checkbox" id="uAbert_${i}" ${abas.includes('abertura')?'checked':''}> Abertura de Pasta</label>
+        <label><input type="checkbox" id="uConf_${i}" ${abas.includes('conferencia')?'checked':''}> Conferência</label>
+        <label><input type="checkbox" id="uInic_${i}" ${abas.includes('iniciais')?'checked':''}> Iniciais</label>
+        <label><input type="checkbox" id="uAjuiz_${i}" ${abas.includes('ajuizamento')?'checked':''}> Ajuizamento</label>
+      </span>
+      <button class="btn btn-mini btn-borda" onclick="salvarUsuario(${i})">Salvar</button>
+      <button class="btn btn-mini btn-perigo" onclick="excluirUsuario(${i})">Excluir</button>
+    </div>`;
+  }).join('') || '<div style="font-size:12.5px;color:var(--cinza);margin-bottom:8px">Nenhum usuário cadastrado ainda.</div>';
+}
+
+function abasMarcadas(atendId,abertId,inicId,ajuizId,agendId,agendaId,confId,leadId){
+  const a=[];
+  if($(leadId).checked)a.push('lead');
+  if($(agendId).checked)a.push('agendamentos');
+  if($(agendaId).checked)a.push('agenda');
+  if($(atendId).checked)a.push('atendimentos');
+  if($(abertId).checked)a.push('abertura');
+  if($(confId).checked)a.push('conferencia');
+  if($(inicId).checked)a.push('iniciais');
+  if($(ajuizId).checked)a.push('ajuizamento');
+  return a.join(',');
+}
+
+async function adicionarUsuario(){
+  const nome=$('novoNome').value.trim(), senha=$('novaSenha').value.trim();
+  const abas=abasMarcadas('novoAtend','novoAbert','novoInic','novoAjuiz','novoAgend','novoAgenda','novoConf','novoLead');
+  if(!nome||!senha){toast('Informe nome e senha');return}
+  if(!abas){toast('Marque ao menos uma aba');return}
+  loading(true,'Salvando…');
+  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,tipo:$('novoTipo').value});
+  loading(false);
+  if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();$('novoNome').value='';$('novaSenha').value='';toast('Usuário adicionado')}
+  else toast(r.erro);
+}
+
+async function salvarUsuario(i){
+  const nome=$('uNome_'+i).value.trim(), senha=$('uSenha_'+i).value.trim();
+  const abas=abasMarcadas('uAtend_'+i,'uAbert_'+i,'uInic_'+i,'uAjuiz_'+i,'uAgend_'+i,'uAgenda_'+i,'uConf_'+i,'uLead_'+i);
+  if(!nome||!senha){toast('Informe nome e senha');return}
+  if(!abas){toast('Marque ao menos uma aba');return}
+  loading(true,'Salvando…');
+  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,tipo:$('uTipo_'+i).value,nomeAntigo:listaUsuariosCache[i].nome});
+  loading(false);
+  if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();toast('Usuário atualizado')}
+  else toast(r.erro);
+}
+
+async function alterarSenhaMaster(){
+  const atual=$('msAtual').value, nova=$('msNova').value.trim();
+  if(!atual||!nova){toast('Preencha a senha atual e a nova senha');return}
+  if(!confirm('Alterar a senha do master? A nova senha valerá para todos os acessos a partir de agora.'))return;
+  loading(true,'Alterando senha…');
+  const r = await apiPost({action:'alterarSenhaMaster',senhaAtual:atual,senhaNova:nova});
+  loading(false);
+  if(r.ok){
+    usuario.senha = nova;
+    sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
+    $('msAtual').value='';$('msNova').value='';
+    toast('Senha do master alterada com sucesso');
+  }else toast(r.erro);
+}
+
+async function excluirUsuario(i){
+  if(!confirm('Excluir o usuário '+listaUsuariosCache[i].nome+'?'))return;
+  loading(true,'Excluindo…');
+  const r = await apiPost({action:'excluirUsuario',senhaMaster:usuario.senha,nome:listaUsuariosCache[i].nome});
+  loading(false);
+  if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();toast('Usuário excluído')}
+  else toast(r.erro);
+}
+
+/* ===================== inicialização ===================== */
+(function init(){
+  const selStatus=$('f_STATUS');
+  const selFiltro=document.querySelector('select[data-f="STATUS"]');
+  Object.keys(STATUS_CORES).forEach(s=>{
+    selStatus.insertAdjacentHTML('beforeend',`<option>${s}</option>`);
+    selFiltro.insertAdjacentHTML('beforeend',`<option>${s}</option>`);
+  });
+  document.querySelectorAll('[data-f]').forEach(el=>{
+    el.addEventListener('input',renderizar);
+    el.addEventListener('change',renderizar);
+  });
+  document.querySelectorAll('[data-fh]').forEach(el=>{
+    el.addEventListener('input',renderizar);
+    el.addEventListener('change',renderizar);
+  });
+  $('filtroMes').addEventListener('change',renderizar);
+  $('filtroMes').addEventListener('input',renderizar);
+  ['fDataDe','fDataAte','fHistDe','fHistAte','filtroMesAp'].forEach(id=>{
+    $(id).addEventListener('change',renderizar);
+    $(id).addEventListener('input',renderizar);
+  });
+  document.querySelectorAll('[data-fa]').forEach(el=>{
+    el.addEventListener('input',renderizar);
+    el.addEventListener('change',renderizar);
+  });
+  document.querySelectorAll('[data-fc]').forEach(el=>{
+    el.addEventListener('input',renderizar);
+    el.addEventListener('change',renderizar);
+  });
+  $('fConfStatus').addEventListener('change',renderizar);
+  document.querySelectorAll('[data-fi],[data-fj]').forEach(el=>{
+    el.addEventListener('input',renderizar);
+    el.addEventListener('change',renderizar);
+  });
+  document.querySelectorAll('[data-fg]').forEach(el=>{
+    el.addEventListener('input',renderAgendamentos);
+    el.addEventListener('change',renderAgendamentos);
+  });
+  $('fAgStatus').addEventListener('change',renderAgendamentos);
+  document.querySelectorAll('[data-fl]').forEach(el=>{
+    el.addEventListener('input',renderLeads);
+    el.addEventListener('change',renderLeads);
+  });
+  $('fLeadAtend').addEventListener('change',renderLeads);
+  $('filtroMesAg').addEventListener('change',renderAgendamentos);
+  $('filtroMesAg').addEventListener('input',renderAgendamentos);
+  ['fIniData','fIniStatus','fAjSaida','fAjData','fAjStatus','filtroMesIni','filtroMesAj'].forEach(id=>{
+    $(id).addEventListener('change',renderizar);
+    $(id).addEventListener('input',renderizar);
+  });
+  document.querySelectorAll('.modal-fundo').forEach(m=>{
+    m.addEventListener('mousedown',e=>{if(e.target===m)m.classList.remove('aberto')});
+  });
+  // logo na tela de login (reaproveita a mesma imagem do cabeçalho)
+  $('loginLogo').src = document.querySelector('.marca img').src;
+  // restaura a sessão se o usuário já entrou nesta janela
+  const salvo = sessionStorage.getItem('usuarioADV');
+  if(salvo){
+    try{usuario = JSON.parse(salvo)}catch(e){usuario=null}
+  }
+  if(usuario){aplicarLogin()}
+  else{$('telaLogin').style.display='flex';setTimeout(()=>$('loginSenha').focus(),100)}
+})();
+</script>
+</body>
+</html>
