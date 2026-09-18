@@ -945,6 +945,13 @@ function dataISO(br){ // dd/mm/yyyy -> yyyy-mm-dd
   return `${a}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
 }
 function chaveData(v){const iso=dataISO(v);return iso||'9999-12-31'}
+function baseMes(b){ // exibe a Base sempre como mm/aaaa (remove o dia, se o Sheets acrescentou)
+  b=String(b||'').trim();
+  if(/^\d{2}\/\d{4}$/.test(b))return b;
+  const m=b.match(/^\d{1,2}\/(\d{2}\/\d{4})/);
+  return m?m[1]:'';
+}
+function leadEnviado(r){return String(r.STATUS||'').trim()!==''}
 function chaveCriado(v){
   const m = String(v||'').match(/(\d{2})\/(\d{2})\/(\d{4})\s*(\d{2}:\d{2})?/);
   return m ? `${m[3]}-${m[2]}-${m[1]} ${m[4]||''}` : '9999-12-31';
@@ -1959,13 +1966,13 @@ function renderLeads(){
     else if(atF && normaliza(r.ATENDENTE)!==normaliza(atF)) return false;
     return Object.entries(fl).every(([c,v])=>normaliza(c==='DATA'?dataBR(r.DATA):r[c]).includes(v));
   });
-  visiveis.sort((a,b)=>((dataISO(a.DATA)||'0000')+' '+chaveCriado(a.CRIADO_EM)).localeCompare((dataISO(b.DATA)||'0000')+' '+chaveCriado(b.CRIADO_EM)));
+  visiveis.sort((a,b)=>((leadEnviado(a)?(dataISO(a.DATA)||'0000'):'0000')+' '+chaveCriado(a.CRIADO_EM)).localeCompare((leadEnviado(b)?(dataISO(b.DATA)||'0000'):'0000')+' '+chaveCriado(b.CRIADO_EM)));
 
   $('corpoLead').innerHTML = visiveis.map(r=>{
     return `<tr class="${r.ATENDENTE?'st-verde':''}">
       <td style="text-align:center"><input type="checkbox" ${leadSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleLeadSel('${r.ID}',this.checked)" ${estag?'disabled':''}></td>
-      <td>${esc(r.BASE||'')}</td>
-      <td>${esc(dataBR(r.DATA))}</td>
+      <td>${esc(baseMes(r.BASE))}</td>
+      <td>${leadEnviado(r)?esc(dataBR(r.DATA)):''}</td>
       <td><b>${esc(r.NOME)}</b></td>
       <td>${esc(r.TELEFONE)}</td>
       <td>${esc(r.EMPRESA)}</td>
@@ -2133,9 +2140,9 @@ function abrirEditarLead(id){
   $('ld_NOME').value=r.NOME||'';setTelsLead(r.TELEFONE||'');
   $('ld_EMPRESA').value=r.EMPRESA||'';$('ld_ATENDENTE').value=r.ATENDENTE||'';
   $('ld_ESTAG').value='';
-  $('ld_DATA').value = dataISO(r.DATA)||'';
-  const bs = String(r.BASE||''); // mm/aaaa
-  $('ld_BASE').value = /^\d{2}\/\d{4}$/.test(bs) ? bs.slice(3,7)+'-'+bs.slice(0,2) : '';
+  $('ld_DATA').value = leadEnviado(r)?(dataISO(r.DATA)||''):'';
+  const bs = baseMes(r.BASE); // mm/aaaa
+  $('ld_BASE').value = bs ? bs.slice(3,7)+'-'+bs.slice(0,2) : '';
   $('mLead').classList.add('aberto');
 }
 async function salvarLead(){
