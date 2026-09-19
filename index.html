@@ -244,6 +244,7 @@ td.acao{white-space:nowrap}
       <button class="btn btn-mini btn-principal" onclick="atribuirLeadsSel()" id="btnAtribuir">Atribuir aos selecionados (0)</button>
       <button class="btn btn-mini btn-borda" onclick="abrirEditarLote()">Editar selecionados</button>
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsSel()">Excluir selecionados</button>
+      <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsTodosUI()" title="Apaga todos os leads da lista, inclusive os já enviados aos estagiários">Excluir TODOS</button>
     </span>
     <span style="color:var(--cinza);font-size:12px" id="dicaEstagiario">Info <b>ESTAGIÁRIO</b> = envio automático de até <b>15 leads/dia por estagiário</b> na aba Atendimentos, de <b>segunda a sexta</b>, sem duplicidade (cada lead vai 1 única vez)</span>
     <datalist id="dlInfo"><option value="ROBO"><option value="ESTAGIÁRIO"></datalist>
@@ -1982,6 +1983,7 @@ function renderLeads(){
         ${usuario&&usuario.master?`<button class="btn btn-mini btn-perigo" onclick="excluirLead('${r.ID}')">Excluir</button>`:''}
       </td>
     </tr>`}).join('');
+  window.leadVisiveisIds = visiveis.map(r=>r.ID);
   $('vazioLead').style.display = visiveis.length?'none':'block';
   // passivo: leads sem info definida
   $('contLead').textContent = leadRegistros.filter(r=>!String(r.ATENDENTE||'').trim()).length;
@@ -2007,14 +2009,21 @@ function selTodosLeads(marcado){
   document.querySelectorAll('#corpoLead input[type=checkbox]').forEach(chk=>{
     chk.checked = marcado;
   });
-  // recalcula a partir das linhas renderizadas
-  const idsVisiveis = [...document.querySelectorAll('#corpoLead tr')].map(tr=>{
-    const btn = tr.querySelector('[onclick^="abrirEditarLead"]');
-    const m = btn && btn.getAttribute('onclick').match(/'(.+)'/);
-    return m?m[1]:null;
-  }).filter(Boolean);
-  idsVisiveis.forEach(id=>{if(marcado)leadSel.add(id);else leadSel.delete(id)});
+  (window.leadVisiveisIds||[]).forEach(id=>{if(marcado)leadSel.add(id);else leadSel.delete(id)});
   atualizarBtnAtribuir();
+}
+
+async function excluirLeadsTodosUI(){
+  const total = leadRegistros.length;
+  if(!total){toast('Não há leads para excluir');return}
+  if(!confirm('Excluir TODOS os '+total+' leads da lista?\n\nIsso inclui os já enviados aos estagiários (os atendimentos criados a partir deles permanecem na aba Atendimentos).\n\nEsta ação não pode ser desfeita.'))return;
+  loading(true,'Excluindo todos os leads…');
+  const resp = await apiPost({action:'excluirLeadsTodos',senhaMaster:usuario.senha});
+  loading(false);
+  if(resp.ok){
+    leadRegistros=[];leadSel.clear();renderLeads();
+    toast(resp.total+' lead(s) excluídos');
+  }else toast('Erro: '+resp.erro);
 }
 
 function infoValida(v){
@@ -2249,7 +2258,18 @@ function importarLeads(input){
       loading(true,'Importando '+regs.length+' leads…');
       const resp = await apiPost({action:'salvarLeadsLote',registros:regs,senhaMaster:usuario.senha});
       loading(false);
-      if(resp.ok){toast(resp.total+' leads importados');await carregar()}
+      if(resp.ok){
+        const d = resp.distribuicao;
+        let msg = resp.total+' leads importados';
+        if(d && d.ok){
+          msg += ' · '+(d.distribuidos||0)+' enviados agora';
+          if(d.duplicados) msg += ' · '+d.duplicados+' já existiam em Atendimentos (não reenviados)';
+          if(d.aguardando) msg += ' · '+d.aguardando+' na fila (limite de 15/dia por estagiário)';
+          if(d.motivo==='fim de semana') msg += ' · distribuição ocorre em dias úteis';
+        }
+        toast(msg);
+        await carregar();
+      }
       else toast('Erro: '+resp.erro);
     })();
   };
