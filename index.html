@@ -1334,6 +1334,15 @@ function abrirFicha(id){
     .forEach(c=>$('f_'+c).value=g(c));
   // estagiários não usam Horário nem Adv. atendimento
   const estagF = souEstagiario();
+  if(!fichaAtual){
+    // atendimento novo: já entra com a data de hoje (lista do dia)
+    $('f_DATA').value = new Date().toISOString().slice(0,10);
+    // e com o responsável preenchido com quem está lançando
+    if(usuario && !$('f_RESPONSAVEL').value) $('f_RESPONSAVEL').value = usuario.nome;
+  }
+  // estagiário não escolhe outro responsável: o atendimento é sempre dele
+  if(estagF && usuario) $('f_RESPONSAVEL').value = usuario.nome;
+  $('f_RESPONSAVEL').readOnly = !!estagF;
   $('f_HORARIO').closest('.campo').style.display = estagF?'none':'';
   $('f_ADV_ATENDIMENTO').closest('.campo').style.display = estagF?'none':'';
   // descrição da pendência registrada na Conferência (somente leitura)
@@ -1370,6 +1379,8 @@ async function salvarFicha(){
     RETORNO_DIA_HORARIO: $('f_RETORNO_DIA_HORARIO').value.trim()
   };
   if(!reg.NOME){toast('Informe o nome do cliente');return}
+  if(souEstagiario() && usuario) reg.RESPONSAVEL = usuario.nome; // atendimento do estagiário fica sempre com ele
+  if(!reg.DATA) reg.DATA = dataBR(new Date().toISOString().slice(0,10));
   loading(true,'Salvando…');
   try{
     const r = await apiPost({action:'salvar',registro:reg});
