@@ -891,6 +891,9 @@ const STATUS_CORES = {
   'TENTOU LIGAR E NÃO ENVIOU MENSAGEM':'amarelo',
   'ATENDIMENTO WHATS':'azul',
   'ATENDIMENTO VOZ':'azul',
+  'PRESCRITO':'vermelho',
+  'TELEFONE ERRADO':'amarelo',
+  'INDISPONÍVEL':'cinza',
   'JÁ TEM AÇÃO':'vermelho',
   'EM ANÁLISE':'cinza',
   'RETORNAR':'cinza',
@@ -1087,9 +1090,13 @@ function renderizar(){
   });
   visiveis.sort((a,b)=>(chaveData(a.DATA)+' '+(a.HORARIO||'')).localeCompare(chaveData(b.DATA)+' '+(b.HORARIO||'')));
   const corpo = $('corpoAtend');
+  const hojeISO = new Date().toISOString().slice(0,10);
   corpo.innerHTML = visiveis.map(r=>{
-    const cor = STATUS_CORES[normaliza(r.STATUS)]||'';
+    let cor = STATUS_CORES[normaliza(r.STATUS)]||'';
     const extra = [];
+    // lead sem status escolhido até o fim do dia: fica vermelho a partir do dia seguinte
+    const atrasado = !String(r.STATUS||'').trim() && dataISO(r.DATA) && dataISO(r.DATA) < hojeISO;
+    if(atrasado){cor='vermelho';extra.push('SEM STATUS — atrasado');}
     if(normaliza(r.STATUS)==='MARCADO OUTRO DIA' && r.RETORNO_DIA_HORARIO) extra.push('Remarcado: '+esc(r.RETORNO_DIA_HORARIO));
     const obs = [r.OBSERVACOES, r.INDICACAO?('Indicação: '+r.INDICACAO):'', (normaliza(r.STATUS)==='PENDENTE DE DOCUMENTO'&&r.CONF_OBS)?('Pendência: '+r.CONF_OBS):'', (normaliza(r.STATUS)==='PENDENTE DE DOCUMENTO'&&r.DOC_FALTANDO)?('Faltando: '+r.DOC_FALTANDO):''].filter(Boolean).join(' · ');
     return `<tr class="st-${cor}" onclick="abrirFicha('${r.ID}')">
@@ -2277,6 +2284,7 @@ function importarLeads(input){
           if(d.duplicados) msg += ' · '+d.duplicados+' já existiam em Atendimentos (não reenviados)';
           if(d.aguardando) msg += ' · '+d.aguardando+' na fila (limite de 15/dia por estagiário)';
           if(d.motivo==='fim de semana') msg += ' · distribuição ocorre em dias úteis';
+          if(d.bloqueados && d.bloqueados.length) msg += ' · sem receber (30+ atrasados): '+d.bloqueados.join(', ');
         }
         toast(msg);
         await carregar();
