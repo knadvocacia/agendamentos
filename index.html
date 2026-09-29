@@ -243,6 +243,10 @@ td.acao{white-space:nowrap}
       <input id="leadAtendente" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO" style="width:170px;border:1px solid var(--linha)">
       <button class="btn btn-mini btn-principal" onclick="atribuirLeadsSel()" id="btnAtribuir">Atribuir aos selecionados (0)</button>
       <button class="btn btn-mini btn-borda" onclick="abrirEditarLote()">Editar selecionados</button>
+      <span class="master-so" style="display:none;align-items:center;gap:4px">
+        <input id="leadEstagLote" list="dlEstagiarios" placeholder="Nome do estagiário" style="width:160px;border:1px solid var(--linha)" title="Enviar/transferir os leads selecionados para este estagiário">
+        <button class="btn btn-mini btn-principal" onclick="enviarSelParaEstagiario()">Enviar p/ estagiário</button>
+      </span>
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsSel()">Excluir selecionados</button>
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsTodosUI()" title="Apaga todos os leads da lista, inclusive os já enviados aos estagiários">Excluir TODOS</button>
     </span>
@@ -906,7 +910,10 @@ const DOCS_OBRIG = [
   ['DOC_RESIDENCIA','Comprovante de Residência (últimos 3 meses)'],
   ['DOC_TRCT','Termo de rescisão / TRCT (se foi demitido)'],
   ['DOC_ENTREVISTA','Entrevista'],
-  ['DOC_RESUMO_DIREITO','Resumo Direito']
+  ['DOC_RESUMO_DIREITO','Resumo Direito'],
+  ['DOC_PROCURACAO','Procuração'],
+  ['DOC_DECLARACAO','Declaração'],
+  ['DOC_CONTRATO','Contrato']
 ];
 function docsObrigFaltantes(r){
   return DOCS_OBRIG.filter(([c])=>{
@@ -977,16 +984,27 @@ async function apiPost(payload){
 }
 
 /* ===================== carregar / renderizar ===================== */
+function aplicarDados(r){
+  registros = r.atendimentos||[];
+  agRegistros = r.agendamentos||[];
+  leadRegistros = r.leads||[];
+  renderizar();
+  renderAgendamentos();
+  renderLeads();
+  if(r.estagiarios){aplicarEstagiarios(r.estagiarios)}
+  else{carregarEstagiarios()} // implantação antiga: busca em chamada separada
+}
+
 async function carregar(){
   if(API_URL.indexOf('COLE_AQUI')===0){toast('Configure a API_URL no início do arquivo index.html');renderizar();return}
   loading(true,'Carregando dados…');
   try{
-    // uma única requisição traz atendimentos + agendamentos + leads (muito mais rápido)
+    // uma única requisição traz atendimentos + agendamentos + leads + estagiários
     const r = await apiPost({action:'carregarTudo'});
     if(r.ok){
-      registros = r.atendimentos||[];
-      agRegistros = r.agendamentos||[];
-      leadRegistros = r.leads||[];
+      loading(false);
+      aplicarDados(r);
+      return;
     }else if(String(r.erro||'').includes('Ação inválida')){
       // implantação antiga do Code.gs: usa o caminho anterior (3 chamadas)
       const [r1, ra, rl] = await Promise.all([apiGet(), apiPost({action:'listarAgendamentos'}), apiPost({action:'listarLeads'})]);
@@ -1500,15 +1518,27 @@ async function abrirDocsCol(colOuLista){
 
 async function baixarDocArquivo(driveId){
   loading(true,'Baixando arquivo…');
-  const r = await apiPost({action:'baixarDoc',driveId});
+  let r;
+  try{ r = await apiPost({action:'baixarDoc',driveId}); }
+  catch(e){ loading(false); toast('Falha de conexão ao baixar o arquivo'); return }
   loading(false);
-  if(!r.ok){toast('Erro: '+r.erro);return}
-  const bytes = Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0));
-  const blob = new Blob([bytes],{type:r.mime||'application/octet-stream'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=r.nome; // o download sai com o próprio nome do arquivo
-  a.click();
+  if(!r.ok){toast('Erro ao baixar: '+r.erro);return}
+  try{
+    const bytes = Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0));
+    const blob = new Blob([bytes],{type:r.mime||'application/octet-stream'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=r.nome||'documento'; // o download sai com o próprio nome do arquivo
+    document.body.appendChild(a); // alguns navegadores exigem o link na página
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    toast('Baixado: '+(r.nome||'documento')+' — confira a pasta Downloads');
+  }catch(e){
+    // navegador sem suporte ao download direto (ex.: alguns celulares): abre o arquivo
+    verDocArquivo(driveId);
+  }
 }
 
 function lerArquivoBase64(file){
@@ -1792,6 +1822,7 @@ async function baixarDocsZip(id){
   const NOMES_ZIP = {
     DOC_CTPS:'CTPS', DOC_RG_CPF:'RG e CPF', DOC_RESIDENCIA:'Comprovante de Residência',
     DOC_TRCT:'TRCT', DOC_ENTREVISTA:'Entrevista', DOC_RESUMO_DIREITO:'Resumo Direito',
+    DOC_PROCURACAO:'Procuração', DOC_DECLARACAO:'Declaração', DOC_CONTRATO:'Contrato',
     DOC_CONTRACHEQUES:'Contracheques', DOC_EXAMES:'Exames Médicos', DOC_CAT:'CAT',
     DOC_ATESTADOS:'Atestados Médicos', DOC_PRINTS:'Prints'
   };
@@ -1950,12 +1981,13 @@ let leadSel = new Set();
 let leadEditId = null;
 let estagiariosCache = [];
 
+function aplicarEstagiarios(lista){
+  estagiariosCache = lista||[];
+  $('dlEstagiarios').innerHTML = estagiariosCache.map(n=>`<option value="${esc(n)}">`).join('');
+}
 async function carregarEstagiarios(){
   const r = await apiPost({action:'listarEstagiarios'});
-  if(r.ok){
-    estagiariosCache = r.estagiarios||[];
-    $('dlEstagiarios').innerHTML = estagiariosCache.map(n=>`<option value="${esc(n)}">`).join('');
-  }
+  if(r.ok)aplicarEstagiarios(r.estagiarios);
 }
 function estagValido(v){
   const n = normaliza(v);
@@ -2112,6 +2144,22 @@ async function salvarEditarLote(){
     leadSel.clear();
     await carregar();
   }
+}
+
+async function enviarSelParaEstagiario(){
+  if(!leadSel.size){toast('Marque ao menos um lead na lista');return}
+  const nome = estagValido($('leadEstagLote').value.trim());
+  if(!nome){toast('Estagiário não encontrado: cadastre-o em Usuários com o tipo ESTAGIÁRIO');return}
+  if(!confirm('Enviar/transferir '+leadSel.size+' lead(s) para '+nome+'?'))return;
+  loading(true,'Enviando para '+nome+'…');
+  const r = await apiPost({action:'enviarLeadsEstagiario',ids:[...leadSel],estagiario:nome});
+  loading(false);
+  if(r.ok){
+    toast((r.encaminhados||0)+' enviado(s) para a fila e '+(r.transferidos||0)+' transferido(s) para '+nome);
+    leadSel.clear();
+    $('leadEstagLote').value='';
+    await carregar();
+  }else toast('Erro: '+r.erro);
 }
 
 async function excluirLeadsSel(){
@@ -2948,14 +2996,24 @@ async function entrar(){
   const senha = $('loginSenha').value;
   if(!senha){$('loginErro').textContent='Digite sua senha';return}
   $('loginErro').textContent='';
-  loading(true,'Verificando…');
+  loading(true,'Entrando…');
   try{
-    const r = await apiPost({action:'login',senha});
+    // uma única viagem: valida a senha e já traz todos os dados
+    const r = await apiPost({action:'loginCompleto',senha});
     loading(false);
     if(r.ok){
       usuario = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha, abas:String(r.abas||'').split(',').filter(Boolean)};
       sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
-      aplicarLogin();
+      aplicarLogin(true);
+      aplicarDados(r);
+    }else if(String(r.erro||'').includes('Ação inválida')){
+      // implantação antiga do Code.gs: caminho anterior (2 viagens)
+      const r1 = await apiPost({action:'login',senha});
+      if(r1.ok){
+        usuario = {nome:r1.nome, master:!!r1.master, tipo:r1.tipo||'ADVOGADO', senha, abas:String(r1.abas||'').split(',').filter(Boolean)};
+        sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
+        aplicarLogin();
+      }else{$('loginErro').textContent = r1.erro||'Senha incorreta'}
     }else{
       $('loginErro').textContent = r.erro||'Senha incorreta';
     }
@@ -2974,7 +3032,7 @@ function aplicarPermissoesUI(){
   });
 }
 
-function aplicarLogin(){
+function aplicarLogin(semCarregar){
   usuario.abas = usuario.abas||[];
   $('telaLogin').style.display='none';
   $('loginSenha').value='';
@@ -2982,7 +3040,36 @@ function aplicarLogin(){
   $('agAdvSel').innerHTML='';
   const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
   trocarAba(primeira);
-  carregar();
+  if(!semCarregar)carregar();
+}
+
+async function sessaoCompleta(){
+  // página recarregada com sessão guardada: UMA viagem revalida as permissões e traz os dados
+  loading(true,'Carregando dados…');
+  try{
+    const r = await apiPost({action:'loginCompleto',senha:usuario.senha});
+    loading(false);
+    if(r.ok){
+      usuario = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha:usuario.senha, abas:String(r.abas||'').split(',').filter(Boolean)};
+      sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
+      aplicarPermissoesUI();
+      const ativa = document.querySelector('.aba.ativa');
+      if(!ativa || !podeAba(ativa.dataset.aba)){
+        const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+        trocarAba(primeira);
+      }
+      aplicarDados(r);
+      return;
+    }
+    if(String(r.erro||'').includes('Ação inválida')){
+      // implantação antiga do Code.gs: caminho anterior (2 viagens)
+      carregar();
+      revalidarSessao();
+      return;
+    }
+    sair();
+    toast('Sua senha ou seu acesso mudou — entre novamente');
+  }catch(e){loading(false);carregar()} // sem conexão momentânea: tenta o caminho normal
 }
 
 async function revalidarSessao(){
@@ -3124,7 +3211,16 @@ async function excluirUsuario(i){
   loading(true,'Excluindo…');
   const r = await apiPost({action:'excluirUsuario',senhaMaster:usuario.senha,nome:listaUsuariosCache[i].nome});
   loading(false);
-  if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();toast('Usuário excluído')}
+  if(r.ok){
+    listaUsuariosCache=r.usuarios;renderUsuarios();
+    const rd = r.redistribuicao;
+    if(rd && rd.ok && (rd.redistribuidos||rd.semDestino)){
+      let msg='Usuário excluído · '+(rd.redistribuidos||0)+' atendimento(s) redistribuídos entre '+(rd.entre||0)+' estagiário(s) (status zerado)';
+      if(rd.semDestino) msg+=' · '+rd.semDestino+' sem estagiário disponível (Responsável em branco — defina na aba Atendimentos)';
+      toast(msg);
+      carregar(); // atualiza as listas com os novos responsáveis
+    }else toast('Usuário excluído');
+  }
   else toast(r.erro);
 }
 
@@ -3173,6 +3269,11 @@ function integrarFiltros(){
   window.atualizarIconesFiltro=()=>marcas.forEach(m=>m());
 }
 
+function debounce(fn,ms){let t;return function(){clearTimeout(t);t=setTimeout(fn,ms)}}
+const renderizarDeb = debounce(()=>renderizar(),180);
+const renderAgDeb = debounce(()=>renderAgendamentos(),180);
+const renderLeadsDeb = debounce(()=>renderLeads(),180);
+
 (function init(){
   integrarFiltros();
   const selStatus=$('f_STATUS');
@@ -3182,11 +3283,11 @@ function integrarFiltros(){
     selFiltro.insertAdjacentHTML('beforeend',`<option>${s}</option>`);
   });
   document.querySelectorAll('[data-f]').forEach(el=>{
-    el.addEventListener('input',renderizar);
+    el.addEventListener('input',renderizarDeb);
     el.addEventListener('change',renderizar);
   });
   document.querySelectorAll('[data-fh]').forEach(el=>{
-    el.addEventListener('input',renderizar);
+    el.addEventListener('input',renderizarDeb);
     el.addEventListener('change',renderizar);
   });
   $('filtroMes').addEventListener('change',renderizar);
@@ -3196,25 +3297,25 @@ function integrarFiltros(){
     $(id).addEventListener('input',renderizar);
   });
   document.querySelectorAll('[data-fa]').forEach(el=>{
-    el.addEventListener('input',renderizar);
+    el.addEventListener('input',renderizarDeb);
     el.addEventListener('change',renderizar);
   });
   document.querySelectorAll('[data-fc]').forEach(el=>{
-    el.addEventListener('input',renderizar);
+    el.addEventListener('input',renderizarDeb);
     el.addEventListener('change',renderizar);
   });
   $('fConfStatus').addEventListener('change',renderizar);
   document.querySelectorAll('[data-fi],[data-fj]').forEach(el=>{
-    el.addEventListener('input',renderizar);
+    el.addEventListener('input',renderizarDeb);
     el.addEventListener('change',renderizar);
   });
   document.querySelectorAll('[data-fg]').forEach(el=>{
-    el.addEventListener('input',renderAgendamentos);
+    el.addEventListener('input',renderAgDeb);
     el.addEventListener('change',renderAgendamentos);
   });
   $('fAgStatus').addEventListener('change',renderAgendamentos);
   document.querySelectorAll('[data-fl]').forEach(el=>{
-    el.addEventListener('input',renderLeads);
+    el.addEventListener('input',renderLeadsDeb);
     el.addEventListener('change',renderLeads);
   });
   $('fLeadAtend').addEventListener('change',renderLeads);
@@ -3236,8 +3337,8 @@ function integrarFiltros(){
   }
   if(usuario){
     usuario.abas = usuario.abas||[];
-    aplicarLogin();       // mostra já com as permissões guardadas
-    revalidarSessao();    // e atualiza com as permissões atuais do servidor
+    aplicarLogin(true);   // mostra já com as permissões guardadas
+    sessaoCompleta();     // uma viagem só: permissões atuais + todos os dados
   }
   else{$('telaLogin').style.display='flex';setTimeout(()=>$('loginSenha').focus(),100)}
 })();
