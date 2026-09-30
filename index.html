@@ -538,6 +538,7 @@ td.acao{white-space:nowrap}
           <th><input data-fa="NOME" placeholder="Filtrar"></th>
           <th><input data-fa="EMPRESA" placeholder="Filtrar"></th>
           <th><input data-fa="TELEFONE" placeholder="Filtrar"></th>
+          <th><input data-fa="RESPONSAVEL" placeholder="Filtrar"></th>
           <th></th>
           <th><select data-fa="DOC_SITUACAO">
             <option value="">Todas</option>
@@ -548,6 +549,7 @@ td.acao{white-space:nowrap}
         </tr>
         <tr class="nomes">
           <th>Data recebido</th><th>Reclamante</th><th>Reclamado</th><th>Telefone</th>
+          <th title="Estagiário/responsável que atendeu">Atendido por</th>
           <th>Nº Pasta CPJ</th><th>Documentação</th><th>Ações</th>
         </tr>
       </thead>
@@ -911,9 +913,7 @@ const DOCS_OBRIG = [
   ['DOC_TRCT','Termo de rescisão / TRCT (se foi demitido)'],
   ['DOC_ENTREVISTA','Entrevista'],
   ['DOC_RESUMO_DIREITO','Resumo Direito'],
-  ['DOC_PROCURACAO','Procuração'],
-  ['DOC_DECLARACAO','Declaração'],
-  ['DOC_CONTRATO','Contrato']
+  ['DOC_PROCURACAO','Procuração/Declaração/Contrato']
 ];
 function docsObrigFaltantes(r){
   return DOCS_OBRIG.filter(([c])=>{
@@ -1148,9 +1148,13 @@ function renderizar(){
   const mesAp = $('filtroMesAp').value; // período mensal da aba 2
   const fa = {};
   document.querySelectorAll('[data-fa]').forEach(el=>{if(el.value)fa[el.dataset.fa]=normaliza(el.value)});
-  const pendentes = fechados.filter(r=>!noHistorico(r) &&
+  const listaAbertura = fechados.filter(r=>
     (!mesAp || dataISO(r.DATA_FECHAMENTO).slice(0,7)===mesAp) &&
     Object.entries(fa).every(([c,v])=>normaliza(r[c]).includes(v)));
+  const pendentes = listaAbertura.filter(r=>!noHistorico(r));
+  // pastas já abertas (DOC OK + nº pasta) continuam visíveis para corrigir erros
+  const abertasNaLista = listaAbertura.filter(noHistorico)
+    .sort((a,b)=>chaveData(a.DATA_FECHAMENTO).localeCompare(chaveData(b.DATA_FECHAMENTO)));
   const pastasAbertas = fechados.filter(noHistorico); // base das abas 3 e 4 (sem os filtros da aba 2)
 
   /* --- passivo (totais gerais, sem filtros) --- */
@@ -1166,13 +1170,14 @@ function renderizar(){
   $('badgeAbertas').textContent = 'PASTAS ABERTAS: '+historico.length;
   $('badgeNaoAbertas').textContent = 'PASTAS NÃO ABERTAS: '+pendentes.length;
 
-  $('corpoAbertura').innerHTML = pendentes.map(r=>{
+  $('corpoAbertura').innerHTML = pendentes.concat(abertasNaLista).map(r=>{
     const ok = normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK';
     const faltando = normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO';
     const cor = ok?'st-verde':(faltando?'st-amarelo':'');
     return `<tr class="${cor}">
       <td>${esc(dataBR(r.DATA_FECHAMENTO))}</td>
       <td><b>${esc(r.NOME)}</b></td><td>${esc(r.EMPRESA)}</td><td>${esc(r.TELEFONE)}</td>
+      <td title="${esc(r.RESPONSAVEL)}">${esc(r.RESPONSAVEL)}</td>
       <td><input class="ap-input" id="apCpj_${r.ID}" placeholder="Nº pasta" value="${esc(r.PASTA_CPJ)}"></td>
       <td style="min-width:250px">
         <select onchange="apMudaSituacao('${r.ID}',this)">
@@ -1188,7 +1193,7 @@ function renderizar(){
         <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')">Ficha</button>
       </td>
     </tr>`}).join('');
-  $('vazioAbertura').style.display = pendentes.length?'none':'block';
+  $('vazioAbertura').style.display = (pendentes.length+abertasNaLista.length)?'none':'block';
 
   /* --- histórico --- */
   const fh = {};
@@ -1822,7 +1827,7 @@ async function baixarDocsZip(id){
   const NOMES_ZIP = {
     DOC_CTPS:'CTPS', DOC_RG_CPF:'RG e CPF', DOC_RESIDENCIA:'Comprovante de Residência',
     DOC_TRCT:'TRCT', DOC_ENTREVISTA:'Entrevista', DOC_RESUMO_DIREITO:'Resumo Direito',
-    DOC_PROCURACAO:'Procuração', DOC_DECLARACAO:'Declaração', DOC_CONTRATO:'Contrato',
+    DOC_PROCURACAO:'Procuração, Declaração e Contrato', DOC_DECLARACAO:'Declaração', DOC_CONTRATO:'Contrato',
     DOC_CONTRACHEQUES:'Contracheques', DOC_EXAMES:'Exames Médicos', DOC_CAT:'CAT',
     DOC_ATESTADOS:'Atestados Médicos', DOC_PRINTS:'Prints'
   };
@@ -2888,7 +2893,7 @@ const EXPORT_DEFS = {
     ['INDICACAO','Indicação',70],['OBSERVACOES','Observações',120]]},
   aberturaPendentes: {titulo:'Abertura de Pasta - Em aberto', colunas:[
     ['DATA_FECHAMENTO','Data recebido',80],['NOME','Reclamante',150],['EMPRESA','Reclamado',140],
-    ['TELEFONE','Telefone',90],['PASTA_CPJ','Nº Pasta CPJ',80],['DOC_SITUACAO','Documentação',120],
+    ['TELEFONE','Telefone',90],['RESPONSAVEL','Atendido por',100],['PASTA_CPJ','Nº Pasta CPJ',80],['DOC_SITUACAO','Documentação',120],
     ['DOC_FALTANDO','Doc. faltando',130]]},
   pastasAbertas: {titulo:'Pastas abertas', colunas:[
     ['DATA_ABERTURA','Data abertura',85],['NOME','Reclamante',170],['EMPRESA','Reclamado',170],
