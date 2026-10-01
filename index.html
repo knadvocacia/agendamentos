@@ -103,10 +103,8 @@ tr.nomes th{top:0 !important}
 .filtro-pop input,.filtro-pop select{width:100%;padding:5px 7px;border:1px solid var(--linha);border-radius:6px;font-size:12px;color:#2b2b2b;background:#fff}
 tbody td{padding:8px 10px;border-top:1px solid var(--linha);font-size:13px;vertical-align:middle}
 /* estagiários não veem Horário nem Adv. Atendimento na aba Atendimentos */
-body.modo-estag #painel-atendimentos tr.nomes th:nth-child(3),
-body.modo-estag #painel-atendimentos tbody td:nth-child(3),
-body.modo-estag #painel-atendimentos tr.nomes th:nth-child(10),
-body.modo-estag #painel-atendimentos tbody td:nth-child(10){display:none}
+body.modo-estag #painel-atendimentos tr.nomes th:nth-child(9),
+body.modo-estag #painel-atendimentos tbody td:nth-child(9){display:none}
 /* aba Atendimentos: linhas finas para ver muitos contatos de uma vez */
 #painel-atendimentos tbody td{padding:2px 6px;font-size:11.5px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 #painel-atendimentos tbody td .docs-chip{font-size:10px;padding:1px 6px}
@@ -209,6 +207,7 @@ td.acao{white-space:nowrap}
   <div class="topo-dir">
     <div class="topo-dir-linha">
       <span id="usuLogado"></span>
+      <button class="btn-topo" id="btnBaseLeads" style="display:none" onclick="abrirBaseLeads()" title="Todos os leads já importados ao sistema — nenhum é perdido, mesmo excluído da aba Lead">&#128218; Base de Leads</button>
       <button class="btn-topo" id="btnUsuarios" style="display:none" onclick="abrirUsuarios()" title="Adicionar usuários e senhas">&#128101; Usuários</button>
       <button class="btn-topo" onclick="sair()">Sair</button>
     </div>
@@ -329,9 +328,11 @@ td.acao{white-space:nowrap}
       <div class="grade" style="grid-template-columns:1fr 1fr">
         <div class="campo"><label>Data</label><input type="date" id="atl_DATA"></div>
         <div class="campo"><label>Status</label><select id="atl_STATUS"><option value=""></option></select></div>
-        <div class="campo"><label>Responsável</label><input id="atl_RESPONSAVEL"></div>
         <div class="campo"><label>Adv. atendimento</label><input id="atl_ADV"></div>
-        <div class="campo c2"><label>Empresa</label><input id="atl_EMPRESA"></div>
+        <div class="campo c2"><label>Enviar para (estagiário ou advogado)</label>
+          <input id="atl_RESPONSAVEL" list="dlResponsaveis" placeholder="Nome do estagiário ou advogado" title="Os atendimentos selecionados passam a ser deste responsável; a mesma pessoa some de qualquer outra lista (sem duplicidade)">
+        </div>
+        <datalist id="dlResponsaveis"></datalist>
       </div>
     </div>
     <div class="modal-rodape">
@@ -342,6 +343,53 @@ td.acao{white-space:nowrap}
 </div>
 
 <!-- ================= MODAL EDITAR LEADS EM LOTE ================= -->
+<div class="modal-fundo" id="mBaseLeads">
+  <div class="modal" style="max-width:1000px">
+    <div class="modal-topo">
+      <h2>Base de Leads — todos os já importados</h2>
+      <button class="fechar" onclick="fecharModal('mBaseLeads')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <input id="blBusca" placeholder="Buscar nome, telefone ou empresa" style="flex:1;min-width:220px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderBaseLeads()">
+        <select id="blStatus" onchange="renderBaseLeads()" style="padding:6px 9px;border:1px solid var(--linha);border-radius:6px"><option value="">Todos os status</option></select>
+        <input id="blResp" placeholder="Responsável" style="width:150px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderBaseLeads()">
+        <input id="blBase" placeholder="Base mm/aaaa" style="width:110px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderBaseLeads()">
+        <span id="blTotal" style="font-size:12px;color:var(--cinza)"></span>
+      </div>
+      <div style="max-height:60vh;overflow:auto">
+        <table style="min-width:0">
+          <thead><tr class="nomes"><th>Base</th><th>Data</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th><th>Status</th><th>Situação</th></tr></thead>
+          <tbody id="corpoBaseLeads"></tbody>
+        </table>
+        <div class="vazio" id="vazioBaseLeads" style="display:none">Nenhum lead encontrado.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-fundo" id="mMovAb">
+  <div class="modal" style="max-width:780px">
+    <div class="modal-topo">
+      <h2>Histórico da Abertura de Pasta</h2>
+      <button class="fechar" onclick="fecharModal('mMovAb')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div style="font-size:12.5px;color:var(--cinza);margin-bottom:10px">
+        Últimos movimentos desta aba. <b>Desfazer</b> apaga o movimento e devolve a pasta ao estado anterior —
+        um "FALTANDO DOCUMENTAÇÃO" marcado por engano volta a aparecer em <b>Em aberto</b>.
+      </div>
+      <div style="max-height:55vh;overflow:auto">
+        <table style="min-width:0">
+          <thead><tr class="nomes"><th>Quando</th><th>Usuário</th><th>Cliente</th><th>Movimento</th><th></th></tr></thead>
+          <tbody id="corpoMovAb"></tbody>
+        </table>
+        <div class="vazio" id="vazioMovAb" style="display:none">Nenhum movimento registrado ainda.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-fundo" id="mLeadLote">
   <div class="modal" style="max-width:460px">
     <div class="modal-topo">
@@ -479,7 +527,6 @@ td.acao{white-space:nowrap}
             <input type="date" id="fDataDe" title="De (data inicial)">
             <input type="date" id="fDataAte" title="Até (data final)">
           </th>
-          <th><input data-f="HORARIO" placeholder="Filtrar"></th>
           <th><select data-f="STATUS"><option value="">Todos</option></select></th>
           <th><input data-f="NOME" placeholder="Filtrar"></th>
           <th><input data-f="TELEFONE" placeholder="Filtrar"></th>
@@ -494,7 +541,7 @@ td.acao{white-space:nowrap}
         </tr>
         <tr class="nomes">
           <th style="width:34px"><input type="checkbox" id="atendSelTodos" onclick="event.stopPropagation()" onchange="selTodosAtend(this.checked)" title="Selecionar todos os visíveis"></th>
-          <th>Data</th><th>Horário</th><th>Status</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th>
+          <th>Data</th><th>Status</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th>
           <th>Pasta</th><th>Adv. Atendimento</th><th>Data Saída</th>
           <th>Docs</th><th>Observações</th><th></th>
         </tr>
@@ -525,6 +572,7 @@ td.acao{white-space:nowrap}
         <button class="btn btn-mini btn-borda" onclick="exportarExcel('abertura')" title="Exportar a lista visível em Excel">&#11015; Excel</button>
         <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('abertura')" title="Exportar a lista visível em PDF">&#11015; PDF</button>
       </span>
+      <button class="btn btn-mini btn-borda" onclick="abrirMovAbertura()" title="Movimentos feitos nesta aba — desfazer devolve a pasta ao estado anterior">&#128336; Histórico</button>
       <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
     </div>
   </div>
@@ -747,6 +795,21 @@ td.acao{white-space:nowrap}
           <textarea id="f_CONF_OBS_VIS" rows="4" readonly style="background:#fdf3f4;border-color:#e4b6bd;color:#6b1f2b;resize:vertical"></textarea>
         </div>
 
+        <div class="campo"><label>Origem</label>
+          <select id="f_ORIGEM" title="Novo atendimento criado manualmente = indicação; leads distribuídos chegam como LEAD">
+            <option value=""></option>
+            <option value="INDICAÇÃO">INDICAÇÃO</option>
+            <option value="LEAD">LEAD</option>
+          </select>
+        </div>
+        <div class="campo-cond campo" id="cond_DOCSIT">
+          <label>Documentação</label>
+          <select id="f_DOC_SITUACAO">
+            <option value=""></option>
+            <option>DOCUMENTAÇÃO OK</option>
+            <option>FALTANDO DOCUMENTAÇÃO</option>
+          </select>
+        </div>
         <div class="campo-cond campo" id="cond_INDICACAO">
           <label>Indicação do cliente</label><input id="f_INDICACAO">
         </div>
@@ -993,6 +1056,7 @@ function aplicarDados(r){
   renderLeads();
   if(r.estagiarios){aplicarEstagiarios(r.estagiarios)}
   else{carregarEstagiarios()} // implantação antiga: busca em chamada separada
+  if(r.responsaveis)aplicarResponsaveis(r.responsaveis);
 }
 
 async function carregar(){
@@ -1039,7 +1103,7 @@ function selTodosAtend(marcado){
 function abrirEditarAtendLote(){
   if(!atendSel.size){toast('Marque ao menos um atendimento na lista');return}
   $('atLoteTitulo').textContent='Editar '+atendSel.size+' selecionado(s)';
-  ['atl_DATA','atl_STATUS','atl_RESPONSAVEL','atl_ADV','atl_EMPRESA'].forEach(id=>$(id).value='');
+  ['atl_DATA','atl_STATUS','atl_RESPONSAVEL','atl_ADV'].forEach(id=>$(id).value='');
   $('atl_STATUS').innerHTML = '<option value=""></option>'+Object.keys(STATUS_CORES).map(s=>`<option>${s}</option>`).join('');
   $('mAtendLote').classList.add('aberto');
 }
@@ -1048,20 +1112,42 @@ async function salvarAtendLote(){
   const campos = {};
   if($('atl_DATA').value) campos.DATA = dataBR($('atl_DATA').value);
   if($('atl_STATUS').value) campos.STATUS = $('atl_STATUS').value;
-  if($('atl_RESPONSAVEL').value.trim()) campos.RESPONSAVEL = $('atl_RESPONSAVEL').value.trim();
   if($('atl_ADV').value.trim()) campos.ADV_ATENDIMENTO = $('atl_ADV').value.trim();
-  if($('atl_EMPRESA').value.trim()) campos.EMPRESA = $('atl_EMPRESA').value.trim();
-  if(!Object.keys(campos).length){toast('Preencha ao menos um campo para alterar');return}
-  if(!confirm('Aplicar as alterações a '+atendSel.size+' atendimento(s)?'))return;
-  loading(true,'Alterando '+atendSel.size+' atendimento(s)…');
-  const resp = await apiPost({action:'editarAtendLote',ids:[...atendSel],campos});
+  let destino = null;
+  if($('atl_RESPONSAVEL').value.trim()){
+    destino = respValido($('atl_RESPONSAVEL').value.trim());
+    if(!destino){toast('Responsável não encontrado: cadastre-o em Usuários como ESTAGIÁRIO ou ADVOGADO');return}
+  }
+  if(!Object.keys(campos).length && !destino){toast('Preencha ao menos um campo para alterar');return}
+  const ids = [...atendSel];
+  if(!confirm('Aplicar as alterações a '+ids.length+' atendimento(s)?'+(destino?'\n\nEnviar todos para '+destino+' (a mesma pessoa sai de qualquer outra lista).':'')))return;
+  loading(true,'Alterando '+ids.length+' atendimento(s)…');
+  let ok = true;
+  if(Object.keys(campos).length){
+    const r1 = await apiPost({action:'editarAtendLote',ids,campos});
+    if(!r1.ok){ok=false;toast('Erro: '+r1.erro)}
+  }
+  if(ok && destino){
+    let r2 = await apiPost({action:'enviarAtendimentos',ids,responsavel:destino});
+    if(!r2.ok && String(r2.erro||'').includes('Ação inválida')){
+      // implantação antiga: muda o responsável pelo caminho comum (sem checar duplicidade)
+      r2 = await apiPost({action:'editarAtendLote',ids,campos:{RESPONSAVEL:destino}});
+      if(r2.ok) toast('Atualize o Code.gs (Nova versão) para o controle de duplicidade');
+    }
+    if(r2.ok){
+      let msg = (r2.enviados||ids.length)+' atendimento(s) enviados para '+destino;
+      if(r2.removidosDuplicados) msg += ' · '+r2.removidosDuplicados+' duplicado(s) removidos de outras listas';
+      toast(msg);
+    }else{ok=false;toast('Erro: '+r2.erro)}
+  }else if(ok){
+    toast('Atendimento(s) alterados');
+  }
   loading(false);
-  if(resp.ok){
+  if(ok){
     fecharModal('mAtendLote');
-    toast(resp.total+' atendimento(s) alterados');
     atendSel.clear();
     await carregar(); // recarrega para refletir datas automáticas (fechamento etc.)
-  }else toast('Erro: '+resp.erro);
+  }
 }
 
 async function excluirAtendSel(){
@@ -1119,9 +1205,9 @@ function renderizar(){
     const obs = [r.OBSERVACOES, r.INDICACAO?('Indicação: '+r.INDICACAO):'', (normaliza(r.STATUS)==='PENDENTE DE DOCUMENTO'&&r.CONF_OBS)?('Pendência: '+r.CONF_OBS):'', (normaliza(r.STATUS)==='PENDENTE DE DOCUMENTO'&&r.DOC_FALTANDO)?('Faltando: '+r.DOC_FALTANDO):''].filter(Boolean).join(' · ');
     return `<tr class="st-${cor}" onclick="abrirFicha('${r.ID}')">
       <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${atendSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleAtendSel('${r.ID}',this.checked)"></td>
-      <td>${esc(dataBR(r.DATA))}</td><td>${esc(r.HORARIO||'')}</td>
+      <td>${esc(dataBR(r.DATA))}</td>
       <td title="${esc(r.STATUS)||''}"><span class="pill ${cor}">${esc(r.STATUS)||'—'}</span>${extra.length?'<div style="font-size:11px;margin-top:3px">'+extra.join(' · ')+'</div>':''}</td>
-      <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b></td><td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
+      <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b>${normaliza(r.ORIGEM)==='INDICACAO'?' <span class="docs-chip" title="Atendimento criado por indicação" style="background:var(--amarelo-bg);color:var(--amarelo-tx)">IND</span>':''}</td><td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
       <td title="${esc(r.EMPRESA)}">${esc(r.EMPRESA)}</td><td title="${esc(r.RESPONSAVEL)}">${esc(r.RESPONSAVEL)}</td><td title="${esc(r.PASTA)}">${esc(r.PASTA)}</td>
       <td title="${esc(r.ADV_ATENDIMENTO)}">${esc(r.ADV_ATENDIMENTO)}</td><td>${esc(dataBR(r.DATA_SAIDA))}</td>
       <td><span class="docs-chip">${totalDocs(r)} arq.</span></td>
@@ -1360,11 +1446,14 @@ function abrirFicha(id){
   const g = c => fichaAtual ? (fichaAtual[c]||'') : '';
   $('f_DATA').value = dataISO(g('DATA'))||g('DATA');
   $('f_DATA_SAIDA').value = dataISO(g('DATA_SAIDA'))||g('DATA_SAIDA');
-  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO']
+  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM']
     .forEach(c=>$('f_'+c).value=g(c));
-  // estagiários não usam Horário nem Adv. atendimento
+  // o campo Horário saiu da aba Atendimentos (o dado antigo é preservado)
+  $('f_HORARIO').closest('.campo').style.display='none';
   const estagF = souEstagiario();
   if(!fichaAtual){
+    // atendimento novo criado manualmente = indicação
+    $('f_ORIGEM').value = 'INDICAÇÃO';
     // atendimento novo: já entra com a data de hoje (lista do dia)
     $('f_DATA').value = new Date().toISOString().slice(0,10);
     // e com o responsável preenchido com quem está lançando
@@ -1373,7 +1462,6 @@ function abrirFicha(id){
   // estagiário não escolhe outro responsável: o atendimento é sempre dele
   if(estagF && usuario) $('f_RESPONSAVEL').value = usuario.nome;
   $('f_RESPONSAVEL').readOnly = !!estagF;
-  $('f_HORARIO').closest('.campo').style.display = estagF?'none':'';
   $('f_ADV_ATENDIMENTO').closest('.campo').style.display = estagF?'none':'';
   // descrição da pendência registrada na Conferência (somente leitura)
   const pendConf = g('CONF_OBS');
@@ -1388,6 +1476,7 @@ function fecharModal(id){$(id).classList.remove('aberto')}
 function condicionais(){
   const s = normaliza($('f_STATUS').value);
   $('cond_INDICACAO').classList.toggle('visivel', s==='FECHOU');
+  $('cond_DOCSIT').classList.toggle('visivel', s==='FECHOU');
   $('cond_OUTRODIA').classList.toggle('visivel', s==='MARCADO OUTRO DIA');
 }
 
@@ -1405,10 +1494,16 @@ async function salvarFicha(){
     ADV_ATENDIMENTO: $('f_ADV_ATENDIMENTO').value.trim(),
     OBSERVACOES: $('f_OBSERVACOES').value.trim(),
     STATUS: $('f_STATUS').value,
+    ORIGEM: $('f_ORIGEM').value,
     INDICACAO: $('f_INDICACAO').value.trim(),
     RETORNO_DIA_HORARIO: $('f_RETORNO_DIA_HORARIO').value.trim()
   };
   if(!reg.NOME){toast('Informe o nome do cliente');return}
+  if(normaliza(reg.STATUS)==='FECHOU'){
+    const sit = $('f_DOC_SITUACAO').value;
+    if(!sit){toast('Selecione a situação da documentação: DOCUMENTAÇÃO OK ou FALTANDO DOCUMENTAÇÃO');return}
+    reg.DOC_SITUACAO = sit;
+  }
   if(souEstagiario() && usuario) reg.RESPONSAVEL = usuario.nome; // atendimento do estagiário fica sempre com ele
   if(!reg.DATA) reg.DATA = dataBR(new Date().toISOString().slice(0,10));
   loading(true,'Salvando…');
@@ -1421,6 +1516,12 @@ async function salvarFicha(){
         reg.STATUS = r.statusAjustado;
         $('f_STATUS').value = r.statusAjustado;
         alert('O status FECHOU exige todos os documentos obrigatórios anexados.\n\nFaltando:\n- '+(r.docsFaltando||[]).join('\n- ')+'\n\nO atendimento foi salvo como PENDENTE DE DOCUMENTO. Anexe os documentos e mude o status para FECHOU novamente.');
+      }
+      if(r.situacaoAjustada){
+        // marcou DOCUMENTAÇÃO OK, mas há obrigatórios sem anexo: fica como FALTANDO
+        reg.DOC_SITUACAO = r.situacaoAjustada;
+        $('f_DOC_SITUACAO').value = r.situacaoAjustada;
+        alert('DOCUMENTAÇÃO OK exige todos os documentos obrigatórios anexados.\n\nFaltando:\n- '+(r.docsFaltando||[]).join('\n- ')+'\n\nO FECHOU foi salvo, mas a documentação ficou como FALTANDO DOCUMENTAÇÃO. Anexe o que falta e corrija na Abertura de Pasta.');
       }
       if(r.advogado){reg.ADV_ATENDIMENTO=r.advogado;$('f_ADV_ATENDIMENTO').value=r.advogado;toast('Atendimento distribuído para '+r.advogado)}
       const idx = registros.findIndex(x=>x.ID===r.id);
@@ -1683,7 +1784,7 @@ function limparFiltrosHist(){
 async function voltarParaAbertura(id){
   if(!confirm('Devolver esta pasta para "Em aberto"? A documentação voltará a ficar pendente de confirmação.'))return;
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvar',registro:{ID:id,DOC_SITUACAO:''}});
+  const resp = await postAbertura({ID:id,DOC_SITUACAO:''},'Reabrir — pasta devolvida para Em aberto');
   loading(false);
   if(resp.ok){const r=registros.find(x=>x.ID===id);if(r)r.DOC_SITUACAO='';renderizar();trocarSubAba('pendentes');toast('Pasta devolvida para Em aberto')}
   else toast('Erro: '+resp.erro);
@@ -1760,6 +1861,79 @@ async function salvarInicialObs(id){
   else toast('Erro: '+resp.erro);
 }
 
+async function postAbertura(registro,acao){
+  // salva registrando o movimento no histórico; implantação antiga cai no salvar comum
+  let r = await apiPost({action:'salvarAbertura',registro,acao,usuario:usuario?usuario.nome:''});
+  if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvar',registro});
+  return r;
+}
+
+let baseLeadsCache = [];
+async function abrirBaseLeads(){
+  loading(true,'Carregando a base de leads…');
+  const r = await apiPost({action:'baseLeads'});
+  loading(false);
+  if(!r.ok){toast(String(r.erro||'').includes('Ação inválida')?'Atualize o Code.gs (Nova versão) para usar a Base de Leads':'Erro: '+r.erro);return}
+  baseLeadsCache = r.leads||[];
+  const sts = [...new Set(baseLeadsCache.map(l=>String(l.STATUS||'').trim()).filter(Boolean))].sort();
+  $('blStatus').innerHTML = '<option value="">Todos os status</option>'+sts.map(s=>`<option>${esc(s)}</option>`).join('');
+  ['blBusca','blResp','blBase'].forEach(id=>$(id).value='');
+  renderBaseLeads();
+  $('mBaseLeads').classList.add('aberto');
+}
+function renderBaseLeads(){
+  const q = normaliza($('blBusca').value), st = normaliza($('blStatus').value);
+  const resp = normaliza($('blResp').value), bs = $('blBase').value.trim();
+  const vis = baseLeadsCache.filter(l=>{
+    if(q && !(normaliza(l.NOME).includes(q)||normaliza(l.TELEFONE).includes(q)||normaliza(l.EMPRESA).includes(q)))return false;
+    if(st && normaliza(l.STATUS)!==st)return false;
+    if(resp && !normaliza(l.RESPONSAVEL).includes(resp))return false;
+    if(bs && !baseMes(l.BASE).includes(bs))return false;
+    return true;
+  });
+  $('corpoBaseLeads').innerHTML = vis.map(l=>`<tr>
+      <td>${esc(baseMes(l.BASE))}</td>
+      <td style="white-space:nowrap">${esc(dataBR(l.DATA))}</td>
+      <td title="${esc(l.NOME)}"><b>${esc(l.NOME)}</b></td>
+      <td title="${esc(l.TELEFONE)}">${esc(l.TELEFONE)}</td>
+      <td title="${esc(l.EMPRESA)}">${esc(l.EMPRESA)}</td>
+      <td title="${esc(l.RESPONSAVEL)}">${esc(l.RESPONSAVEL)}</td>
+      <td><span class="pill ${STATUS_CORES[normaliza(l.STATUS)]||''}">${esc(l.STATUS)||'—'}</span></td>
+      <td title="${esc(l.SITUACAO)}" style="font-size:11px;color:var(--cinza)">${esc(l.SITUACAO)}</td>
+    </tr>`).join('');
+  $('vazioBaseLeads').style.display = vis.length?'none':'block';
+  $('blTotal').textContent = vis.length+' de '+baseLeadsCache.length+' lead(s)';
+}
+
+async function abrirMovAbertura(){
+  loading(true,'Carregando histórico…');
+  const r = await apiPost({action:'listarMovAbertura'});
+  loading(false);
+  if(!r.ok){toast(String(r.erro||'').includes('Ação inválida')?'Atualize o Code.gs (Nova versão) para usar o histórico':'Erro: '+r.erro);return}
+  const movs = r.movimentos||[];
+  $('corpoMovAb').innerHTML = movs.map(m=>`<tr>
+      <td style="white-space:nowrap">${esc(m.QUANDO)}</td>
+      <td title="${esc(m.USUARIO)}">${esc(m.USUARIO)}</td>
+      <td title="${esc(m.CLIENTE)}"><b>${esc(m.CLIENTE)}</b></td>
+      <td title="${esc(m.ACAO)}">${esc(m.ACAO)}</td>
+      <td class="acao"><button class="btn btn-mini btn-perigo" onclick="desfazerMov('${m.ID}')" title="Apaga este movimento e devolve a pasta ao estado anterior">Desfazer</button></td>
+    </tr>`).join('');
+  $('vazioMovAb').style.display = movs.length?'none':'block';
+  $('mMovAb').classList.add('aberto');
+}
+
+async function desfazerMov(idMov){
+  if(!confirm('Desfazer este movimento? A pasta voltará ao estado anterior a ele.'))return;
+  loading(true,'Desfazendo…');
+  const r = await apiPost({action:'desfazerMovAbertura',idMov});
+  loading(false);
+  if(r.ok){
+    toast('Movimento desfeito — '+(r.cliente?r.cliente+' voltou':'a pasta voltou')+' ao estado anterior');
+    fecharModal('mMovAb');
+    await carregar();
+  }else toast('Erro: '+r.erro);
+}
+
 function apMudaSituacao(id,sel){
   const campo=$('apFalta_'+id);
   campo.classList.toggle('visivel', normaliza(sel.value)==='FALTANDO DOCUMENTACAO');
@@ -1775,7 +1949,7 @@ async function apSalvar(id){
       const lista = 'Obrigatórios faltando: '+faltam.join(', ');
       alert('Esta pasta NÃO pode ser aberta: faltam documentos obrigatórios anexados na ficha.\n\n- '+faltam.join('\n- ')+'\n\nEla ficará como FALTANDO DOCUMENTAÇÃO até anexar tudo.');
       loading(true,'Salvando…');
-      const respF = await apiPost({action:'salvar',registro:{ID:id,DOC_SITUACAO:'FALTANDO DOCUMENTAÇÃO',DOC_FALTANDO:lista,PASTA_CPJ:numeroCpj,STATUS:'PENDENTE DE DOCUMENTO'}});
+      const respF = await postAbertura({ID:id,DOC_SITUACAO:'FALTANDO DOCUMENTAÇÃO',DOC_FALTANDO:lista,PASTA_CPJ:numeroCpj,STATUS:'PENDENTE DE DOCUMENTO'},'FALTANDO DOCUMENTAÇÃO (automático: obrigatórios sem anexo) — devolvido para Atendimentos');
       loading(false);
       if(respF.ok){r.DOC_SITUACAO='FALTANDO DOCUMENTAÇÃO';r.DOC_FALTANDO=lista;r.PASTA_CPJ=numeroCpj;r.STATUS='PENDENTE DE DOCUMENTO';renderizar()}
       return;
@@ -1793,7 +1967,10 @@ async function apSalvar(id){
   // o nº da pasta no CPJ vai automaticamente para o campo PASTA da ficha
   if(numeroCpj) reg.PASTA = numeroCpj;
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvar',registro:reg});
+  const acaoMov = normaliza(situacao)==='DOCUMENTACAO OK'
+    ? ('DOCUMENTAÇÃO OK'+(numeroCpj?' · pasta '+numeroCpj:''))
+    : (faltandoDoc?'FALTANDO DOCUMENTAÇÃO — devolvido para Atendimentos':('Abertura salva'+(numeroCpj?' · pasta '+numeroCpj:'')));
+  const resp = await postAbertura(reg,acaoMov);
   loading(false);
   if(resp.ok){
     Object.assign(r,reg);renderizar();
@@ -1986,9 +2163,20 @@ let leadSel = new Set();
 let leadEditId = null;
 let estagiariosCache = [];
 
+let responsaveisCache = [];
 function aplicarEstagiarios(lista){
   estagiariosCache = lista||[];
   $('dlEstagiarios').innerHTML = estagiariosCache.map(n=>`<option value="${esc(n)}">`).join('');
+}
+function aplicarResponsaveis(lista){
+  responsaveisCache = lista||[];
+  const dl=$('dlResponsaveis');
+  if(dl) dl.innerHTML = responsaveisCache.map(n=>`<option value="${esc(n)}">`).join('');
+}
+function respValido(v){
+  const n = normaliza(v);
+  if(!responsaveisCache.length) return v.trim()||null; // implantação antiga: aceita como digitado
+  return responsaveisCache.find(e=>normaliza(e)===n)||null;
 }
 async function carregarEstagiarios(){
   const r = await apiPost({action:'listarEstagiarios'});
@@ -2887,7 +3075,7 @@ let subAtual = 'pendentes';
 
 const EXPORT_DEFS = {
   atendimentos: {titulo:'Atendimentos', colunas:[
-    ['DATA','Data',60],['HORARIO','Horário',45],['NOME','Nome',120],['TELEFONE','Telefone',75],
+    ['DATA','Data',60],['NOME','Nome',120],['TELEFONE','Telefone',75],
     ['EMPRESA','Empresa',100],['RESPONSAVEL','Responsável',75],['PASTA','Pasta',50],
     ['ADV_ATENDIMENTO','Adv. Atendimento',80],['DATA_SAIDA','Data saída',60],['STATUS','Status',95],
     ['INDICACAO','Indicação',70],['OBSERVACOES','Observações',120]]},
@@ -3031,6 +3219,7 @@ function aplicarPermissoesUI(){
   document.body.classList.toggle('modo-estag', souEstagiario());
   $('usuLogado').textContent = usuario.nome;
   $('btnUsuarios').style.display = usuario.master?'inline-flex':'none';
+  $('btnBaseLeads').style.display = usuario.master?'inline-flex':'none';
   document.querySelectorAll('.master-so').forEach(el=>el.style.display = usuario.master?'inline-flex':'none');
   document.querySelectorAll('.aba').forEach(b=>{
     b.style.display = podeAba(b.dataset.aba)?'inline-flex':'none';
