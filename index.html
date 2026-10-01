@@ -103,8 +103,8 @@ tr.nomes th{top:0 !important}
 .filtro-pop input,.filtro-pop select{width:100%;padding:5px 7px;border:1px solid var(--linha);border-radius:6px;font-size:12px;color:#2b2b2b;background:#fff}
 tbody td{padding:8px 10px;border-top:1px solid var(--linha);font-size:13px;vertical-align:middle}
 /* estagiários não veem Horário nem Adv. Atendimento na aba Atendimentos */
-body.modo-estag #painel-atendimentos tr.nomes th:nth-child(9),
-body.modo-estag #painel-atendimentos tbody td:nth-child(9){display:none}
+body.modo-estag #painel-atendimentos tr.nomes th:nth-child(10),
+body.modo-estag #painel-atendimentos tbody td:nth-child(10){display:none}
 /* aba Atendimentos: linhas finas para ver muitos contatos de uma vez */
 #painel-atendimentos tbody td{padding:2px 6px;font-size:11.5px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 #painel-atendimentos tbody td .docs-chip{font-size:10px;padding:1px 6px}
@@ -356,6 +356,8 @@ td.acao{white-space:nowrap}
         <input id="blResp" placeholder="Responsável" style="width:150px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderBaseLeads()">
         <input id="blBase" placeholder="Base mm/aaaa" style="width:110px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderBaseLeads()">
         <span id="blTotal" style="font-size:12px;color:var(--cinza)"></span>
+        <button class="btn btn-mini btn-borda" onclick="exportarExcel('baseLeads')" title="Baixar a lista filtrada em Excel">&#11015; Excel</button>
+        <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('baseLeads')" title="Baixar a lista filtrada em PDF">&#11015; PDF</button>
       </div>
       <div style="max-height:60vh;overflow:auto">
         <table style="min-width:0">
@@ -527,6 +529,11 @@ td.acao{white-space:nowrap}
             <input type="date" id="fDataDe" title="De (data inicial)">
             <input type="date" id="fDataAte" title="Até (data final)">
           </th>
+          <th><select data-f="DOC_SITUACAO">
+            <option value="">Todas</option>
+            <option value="DOCUMENTAÇÃO OK">DOCUMENTAÇÃO OK</option>
+            <option value="FALTANDO DOCUMENTAÇÃO">FALTANDO DOCUMENTAÇÃO</option>
+          </select></th>
           <th><select data-f="STATUS"><option value="">Todos</option></select></th>
           <th><input data-f="NOME" placeholder="Filtrar"></th>
           <th><input data-f="TELEFONE" placeholder="Filtrar"></th>
@@ -541,7 +548,7 @@ td.acao{white-space:nowrap}
         </tr>
         <tr class="nomes">
           <th style="width:34px"><input type="checkbox" id="atendSelTodos" onclick="event.stopPropagation()" onchange="selTodosAtend(this.checked)" title="Selecionar todos os visíveis"></th>
-          <th>Data</th><th>Status</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th>
+          <th>Data</th><th title="Situação da documentação (mesma da Abertura de Pasta)">Documentação</th><th>Status</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th>
           <th>Pasta</th><th>Adv. Atendimento</th><th>Data Saída</th>
           <th>Docs</th><th>Observações</th><th></th>
         </tr>
@@ -1206,6 +1213,7 @@ function renderizar(){
     return `<tr class="st-${cor}" onclick="abrirFicha('${r.ID}')">
       <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${atendSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleAtendSel('${r.ID}',this.checked)"></td>
       <td>${esc(dataBR(r.DATA))}</td>
+      <td title="${esc(r.DOC_SITUACAO)||''}">${normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK'?'<span class="pill verde">DOC. OK</span>':(normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO'?'<span class="pill amarelo">FALTANDO DOC.</span>':'')}</td>
       <td title="${esc(r.STATUS)||''}"><span class="pill ${cor}">${esc(r.STATUS)||'—'}</span>${extra.length?'<div style="font-size:11px;margin-top:3px">'+extra.join(' · ')+'</div>':''}</td>
       <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b>${normaliza(r.ORIGEM)==='INDICACAO'?' <span class="docs-chip" title="Atendimento criado por indicação" style="background:var(--amarelo-bg);color:var(--amarelo-tx)">IND</span>':''}</td><td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
       <td title="${esc(r.EMPRESA)}">${esc(r.EMPRESA)}</td><td title="${esc(r.RESPONSAVEL)}">${esc(r.RESPONSAVEL)}</td><td title="${esc(r.PASTA)}">${esc(r.PASTA)}</td>
@@ -1433,7 +1441,7 @@ function renderizar(){
   const nAjuizados = ajVisiveis.filter(r=>statusAj(r)==='AJUIZADO').length;
   $('badgeAjuizados').textContent = 'AJUIZADOS: '+nAjuizados;
   $('badgeNaoAjuizados').textContent = 'NÃO AJUIZADOS: '+(ajVisiveis.length-nAjuizados);
-  dadosExport = {atendimentos:visiveis, aberturaPendentes:pendentes, pastasAbertas:histVisiveis, iniciais:iniVisiveis, ajuizamento:ajVisiveis};
+  Object.assign(dadosExport, {atendimentos:visiveis, aberturaPendentes:pendentes, pastasAbertas:histVisiveis, iniciais:iniVisiveis, ajuizamento:ajVisiveis}); // preserva baseLeads
   $('vazioAjuiz').style.display = ajVisiveis.length?'none':'block';
   $('contAjuiz').textContent = nNaoAjuizadas; // processos não ajuizados
 }
@@ -1903,6 +1911,7 @@ function renderBaseLeads(){
     </tr>`).join('');
   $('vazioBaseLeads').style.display = vis.length?'none':'block';
   $('blTotal').textContent = vis.length+' de '+baseLeadsCache.length+' lead(s)';
+  dadosExport.baseLeads = vis; // exporta exatamente o que está filtrado na tela
 }
 
 async function abrirMovAbertura(){
@@ -3074,8 +3083,11 @@ let dadosExport = {};
 let subAtual = 'pendentes';
 
 const EXPORT_DEFS = {
+  baseLeads: {titulo:'Base de Leads', colunas:[
+    ['BASE','Base',55],['DATA','Data',60],['NOME','Nome',150],['TELEFONE','Telefone',90],
+    ['EMPRESA','Empresa',130],['RESPONSAVEL','Responsável',100],['STATUS','Status',110],['SITUACAO','Situação',120]]},
   atendimentos: {titulo:'Atendimentos', colunas:[
-    ['DATA','Data',60],['NOME','Nome',120],['TELEFONE','Telefone',75],
+    ['DATA','Data',60],['DOC_SITUACAO','Documentação',80],['NOME','Nome',120],['TELEFONE','Telefone',75],
     ['EMPRESA','Empresa',100],['RESPONSAVEL','Responsável',75],['PASTA','Pasta',50],
     ['ADV_ATENDIMENTO','Adv. Atendimento',80],['DATA_SAIDA','Data saída',60],['STATUS','Status',95],
     ['INDICACAO','Indicação',70],['OBSERVACOES','Observações',120]]},
@@ -3102,6 +3114,7 @@ function baseExport(aba){
 }
 
 function valorExport(r,campo){
+  if(campo==='BASE') return baseMes(r.BASE);
   if(['DATA','DATA_SAIDA','DATA_FECHAMENTO','DATA_ABERTURA','DATA_FEITO','AJUIZ_DATA'].includes(campo)) return dataBR(r[campo]);
   if(campo==='INICIAL_STATUS') return r.INICIAL_STATUS||'PENDENTE';
   if(campo==='AJUIZ_STATUS') return r.AJUIZ_STATUS||'NÃO AJUIZADO';
