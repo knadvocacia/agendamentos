@@ -207,6 +207,9 @@ td.acao{white-space:nowrap}
   <div class="topo-dir">
     <div class="topo-dir-linha">
       <span id="usuLogado"></span>
+      <span id="ultimaSync" style="font-size:11px;color:#b9b2a4;align-self:center" title="Toda alteração é salva na nuvem na hora em que você clica em Salvar; este é o horário da última leitura dos dados"></span>
+      <button class="btn-topo" onclick="abrirMovAbertura('')" title="Movimentos de todas as abas — desfazer devolve o registro ao estado anterior">&#128336; Histórico</button>
+      <button class="btn-topo" id="btnSync" onclick="sincronizar(false)" title="Busca agora os dados mais recentes da nuvem — tudo o que qualquer computador salvou aparece aqui">&#9729; Sincronizar</button>
       <button class="btn-topo" id="btnBaseLeads" style="display:none" onclick="abrirBaseLeads()" title="Todos os leads já importados ao sistema — nenhum é perdido, mesmo excluído da aba Lead">&#128218; Base de Leads</button>
       <button class="btn-topo" id="btnUsuarios" style="display:none" onclick="abrirUsuarios()" title="Adicionar usuários e senhas">&#128101; Usuários</button>
       <button class="btn-topo" onclick="sair()">Sair</button>
@@ -328,7 +331,6 @@ td.acao{white-space:nowrap}
       <div class="grade" style="grid-template-columns:1fr 1fr">
         <div class="campo"><label>Data</label><input type="date" id="atl_DATA"></div>
         <div class="campo"><label>Status</label><select id="atl_STATUS"><option value=""></option></select></div>
-        <div class="campo"><label>Adv. atendimento</label><input id="atl_ADV"></div>
         <div class="campo c2"><label>Enviar para (estagiário ou advogado)</label>
           <input id="atl_RESPONSAVEL" list="dlResponsaveis" placeholder="Nome do estagiário ou advogado" title="Os atendimentos selecionados passam a ser deste responsável; a mesma pessoa some de qualquer outra lista (sem duplicidade)">
         </div>
@@ -373,17 +375,21 @@ td.acao{white-space:nowrap}
 <div class="modal-fundo" id="mMovAb">
   <div class="modal" style="max-width:780px">
     <div class="modal-topo">
-      <h2>Histórico da Abertura de Pasta</h2>
+      <h2>Histórico de movimentos</h2>
       <button class="fechar" onclick="fecharModal('mMovAb')">&times;</button>
     </div>
     <div class="modal-corpo">
       <div style="font-size:12.5px;color:var(--cinza);margin-bottom:10px">
-        Últimos movimentos desta aba. <b>Desfazer</b> apaga o movimento e devolve a pasta ao estado anterior —
-        um "FALTANDO DOCUMENTAÇÃO" marcado por engano volta a aparecer em <b>Em aberto</b>.
+        Últimos movimentos do sistema. <b>Desfazer</b> apaga o movimento e devolve o registro ao estado
+        anterior — um "FALTANDO DOCUMENTAÇÃO" marcado por engano volta a aparecer em <b>Em aberto</b>, por exemplo.
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center">
+        <select id="mvFiltroAba" onchange="renderMovAb()" style="padding:5px 8px;border:1px solid var(--linha);border-radius:6px"><option value="">Todas as abas</option></select>
+        <input id="mvBusca" placeholder="Buscar cliente ou usuário" oninput="renderMovAb()" style="flex:1;min-width:180px;padding:5px 8px;border:1px solid var(--linha);border-radius:6px">
       </div>
       <div style="max-height:55vh;overflow:auto">
         <table style="min-width:0">
-          <thead><tr class="nomes"><th>Quando</th><th>Usuário</th><th>Cliente</th><th>Movimento</th><th></th></tr></thead>
+          <thead><tr class="nomes"><th>Quando</th><th>Aba</th><th>Usuário</th><th>Cliente</th><th>Movimento</th><th></th></tr></thead>
           <tbody id="corpoMovAb"></tbody>
         </table>
         <div class="vazio" id="vazioMovAb" style="display:none">Nenhum movimento registrado ainda.</div>
@@ -497,7 +503,7 @@ td.acao{white-space:nowrap}
     <button class="btn btn-mini btn-borda" onclick="abrirEditarAtendLote()" id="btnAtendLote">Editar selecionados (0)</button>
     <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirAtendSel()">Excluir selecionados</button>
     <span class="fechados-badge" id="badgeFechados" title="Atualiza conforme os filtros aplicados">CLIENTES FECHADOS: 0</span>
-    <span class="fechados-badge badge-neutro" id="badgePendentes" title="Status PENDENTE — atualiza conforme os filtros">PENDENTES: 0</span>
+    <span class="fechados-badge badge-amarelo" id="badgeFechFaltDoc" title="FECHOU com documentação FALTANDO — atualiza conforme os filtros">FECHADOS FALTANDO DOCS: 0</span>
     <span class="fechados-badge badge-amarelo" id="badgePendAssin" title="Status PENDENTE ASSINATURA — atualiza conforme os filtros">PEND. ASSINATURA: 0</span>
     <span class="periodo-box">
       <label for="filtroMes">Período:</label>
@@ -579,7 +585,7 @@ td.acao{white-space:nowrap}
         <button class="btn btn-mini btn-borda" onclick="exportarExcel('abertura')" title="Exportar a lista visível em Excel">&#11015; Excel</button>
         <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('abertura')" title="Exportar a lista visível em PDF">&#11015; PDF</button>
       </span>
-      <button class="btn btn-mini btn-borda" onclick="abrirMovAbertura()" title="Movimentos feitos nesta aba — desfazer devolve a pasta ao estado anterior">&#128336; Histórico</button>
+      <button class="btn btn-mini btn-borda" onclick="abrirMovAbertura('ABERTURA DE PASTA')" title="Movimentos feitos nesta aba — desfazer devolve a pasta ao estado anterior">&#128336; Histórico</button>
       <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
     </div>
   </div>
@@ -1054,6 +1060,31 @@ async function apiPost(payload){
 }
 
 /* ===================== carregar / renderizar ===================== */
+function marcarSync(){
+  const el=$('ultimaSync');
+  if(el) el.textContent = 'Atualizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+let syncRodando = false;
+async function sincronizar(silencioso){
+  // busca os dados mais recentes da nuvem; o modo silencioso roda sozinho a cada
+  // 3 minutos (e pula o ciclo se houver um modal aberto, para não atrapalhar)
+  if(syncRodando || !usuario) return;
+  if(silencioso && document.querySelector('.modal-fundo.aberto')) return;
+  syncRodando = true;
+  try{
+    if(!silencioso) loading(true,'Sincronizando com a nuvem…');
+    const r = await apiPost({action:'carregarTudo'});
+    if(r.ok){
+      aplicarDados(r);
+      if(!silencioso) toast('Dados sincronizados — tudo o que foi salvo em qualquer computador está na tela');
+    }else if(!silencioso){toast('Erro ao sincronizar: '+r.erro)}
+  }catch(e){if(!silencioso)toast('Falha de conexão ao sincronizar')}
+  if(!silencioso) loading(false);
+  syncRodando = false;
+}
+setInterval(()=>sincronizar(true), 180000); // sincronização automática a cada 3 minutos
+
 function aplicarDados(r){
   registros = r.atendimentos||[];
   agRegistros = r.agendamentos||[];
@@ -1064,6 +1095,7 @@ function aplicarDados(r){
   if(r.estagiarios){aplicarEstagiarios(r.estagiarios)}
   else{carregarEstagiarios()} // implantação antiga: busca em chamada separada
   if(r.responsaveis)aplicarResponsaveis(r.responsaveis);
+  marcarSync();
 }
 
 async function carregar(){
@@ -1110,7 +1142,7 @@ function selTodosAtend(marcado){
 function abrirEditarAtendLote(){
   if(!atendSel.size){toast('Marque ao menos um atendimento na lista');return}
   $('atLoteTitulo').textContent='Editar '+atendSel.size+' selecionado(s)';
-  ['atl_DATA','atl_STATUS','atl_RESPONSAVEL','atl_ADV'].forEach(id=>$(id).value='');
+  ['atl_DATA','atl_STATUS','atl_RESPONSAVEL'].forEach(id=>$(id).value='');
   $('atl_STATUS').innerHTML = '<option value=""></option>'+Object.keys(STATUS_CORES).map(s=>`<option>${s}</option>`).join('');
   $('mAtendLote').classList.add('aberto');
 }
@@ -1119,7 +1151,6 @@ async function salvarAtendLote(){
   const campos = {};
   if($('atl_DATA').value) campos.DATA = dataBR($('atl_DATA').value);
   if($('atl_STATUS').value) campos.STATUS = $('atl_STATUS').value;
-  if($('atl_ADV').value.trim()) campos.ADV_ATENDIMENTO = $('atl_ADV').value.trim();
   let destino = null;
   if($('atl_RESPONSAVEL').value.trim()){
     destino = respValido($('atl_RESPONSAVEL').value.trim());
@@ -1233,7 +1264,7 @@ function renderizar(){
   $('contAtend').textContent = registros.filter(r=>normaliza(r.STATUS)==='FECHOU' && dataISO(r.DATA_FECHAMENTO).slice(0,7)===mesAtual).length; // fechados do mês
   $('resumoFiltro').textContent = (Object.keys(f).length||mes||dDe||dAte)?`${visiveis.length} de ${registros.length} registros`:'';
   $('badgeFechados').textContent = 'CLIENTES FECHADOS: '+visiveis.filter(r=>normaliza(r.STATUS)==='FECHOU').length;
-  $('badgePendentes').textContent = 'PENDENTES: '+visiveis.filter(r=>normaliza(r.STATUS)==='PENDENTE').length;
+  $('badgeFechFaltDoc').textContent = 'FECHADOS FALTANDO DOCS: '+visiveis.filter(r=>normaliza(r.STATUS)==='FECHOU' && normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO').length;
   $('badgePendAssin').textContent = 'PEND. ASSINATURA: '+visiveis.filter(r=>normaliza(r.STATUS)==='PENDENTE ASSINATURA').length;
 
   /* --- aba 2 --- */
@@ -1516,7 +1547,7 @@ async function salvarFicha(){
   if(!reg.DATA) reg.DATA = dataBR(new Date().toISOString().slice(0,10));
   loading(true,'Salvando…');
   try{
-    const r = await apiPost({action:'salvar',registro:reg});
+    const r = await postHist(reg,(fichaAtual?'Ficha editada':'Novo atendimento')+(reg.STATUS?' · '+reg.STATUS:''),'ATENDIMENTOS');
     if(r.ok){
       reg.ID = r.id;
       if(r.statusAjustado){
@@ -1809,7 +1840,7 @@ async function confMudaStatus(id,sel){
   $('confPend_'+id).style.display='none';
   const r = registros.find(x=>x.ID===id);
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvar',registro:{ID:id,CONF_STATUS:valor,CONF_OBS:''}});
+  const resp = await postHist({ID:id,CONF_STATUS:valor,CONF_OBS:''},valor?('Conferência: '+valor):'Conferência limpa','CONFERÊNCIA');
   loading(false);
   if(resp.ok){if(r){r.CONF_STATUS=valor;r.CONF_OBS=''}renderizar();toast(valor?('Conferência: '+valor):'Conferência limpa')}
   else toast('Erro: '+resp.erro);
@@ -1821,7 +1852,7 @@ async function confirmarPendencia(id){
   if(!obs){toast('Descreva a pendência de documentos');return}
   if(!confirm('Confirmar a pendência? A pasta voltará para a aba Atendimentos com o status PENDENTE DE DOCUMENTO.'))return;
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvar',registro:{ID:id,CONF_STATUS:'PENDÊNCIA DE DOCUMENTOS',CONF_OBS:obs,STATUS:'PENDENTE DE DOCUMENTO'}});
+  const resp = await postHist({ID:id,CONF_STATUS:'PENDÊNCIA DE DOCUMENTOS',CONF_OBS:obs,STATUS:'PENDENTE DE DOCUMENTO'},'Conferência: PENDÊNCIA DE DOCUMENTOS — devolvido para Atendimentos','CONFERÊNCIA');
   loading(false);
   if(resp.ok){
     if(r){r.CONF_STATUS='PENDÊNCIA DE DOCUMENTOS';r.CONF_OBS=obs;r.STATUS='PENDENTE DE DOCUMENTO'}
@@ -1833,7 +1864,7 @@ async function confirmarPendencia(id){
 async function salvarInicialStatus(id,valor){
   const r = registros.find(x=>x.ID===id);
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvar',registro:{ID:id,INICIAL_STATUS:valor}});
+  const resp = await postHist({ID:id,INICIAL_STATUS:valor},'Inicial: '+valor,'INICIAIS');
   loading(false);
   if(resp.ok){if(r)r.INICIAL_STATUS=valor;renderizar();toast('Status: '+valor)}
   else toast('Erro: '+resp.erro);
@@ -1842,7 +1873,7 @@ async function salvarInicialStatus(id,valor){
 async function salvarAjuizStatus(id,valor){
   const r = registros.find(x=>x.ID===id);
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvar',registro:{ID:id,AJUIZ_STATUS:valor}});
+  const resp = await postHist({ID:id,AJUIZ_STATUS:valor},'Ajuizamento: '+valor,'AJUIZAMENTO');
   loading(false);
   if(resp.ok){if(r)r.AJUIZ_STATUS=valor;renderizar();toast('Status: '+valor)}
   else toast('Erro: '+resp.erro);
@@ -1852,7 +1883,7 @@ async function salvarAjuizData(id){
   const r = registros.find(x=>x.ID===id);
   const data = dataBR($('ajData_'+id).value);
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvar',registro:{ID:id,AJUIZ_DATA:data}});
+  const resp = await postHist({ID:id,AJUIZ_DATA:data},'Ajuizamento: data '+data,'AJUIZAMENTO');
   loading(false);
   if(resp.ok){if(r)r.AJUIZ_DATA=data;renderizar();toast('Data do ajuizamento salva')}
   else toast('Erro: '+resp.erro);
@@ -1863,16 +1894,27 @@ async function salvarInicialObs(id){
   const obs = $('iniObs_'+id).value.trim();
   const respIni = $('iniResp_'+id).value.trim();
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvar',registro:{ID:id,INICIAL_OBS:obs,INICIAL_RESP:respIni}});
+  const resp = await postHist({ID:id,INICIAL_OBS:obs,INICIAL_RESP:respIni},'Inicial: observação/responsável','INICIAIS');
   loading(false);
   if(resp.ok){if(r){r.INICIAL_OBS=obs;r.INICIAL_RESP=respIni}toast('Salvo')}
   else toast('Erro: '+resp.erro);
 }
 
-async function postAbertura(registro,acao){
-  // salva registrando o movimento no histórico; implantação antiga cai no salvar comum
-  let r = await apiPost({action:'salvarAbertura',registro,acao,usuario:usuario?usuario.nome:''});
+async function postHist(registro,acao,aba){
+  // salva um atendimento registrando o movimento no histórico; implantação antiga cai no salvar comum
+  let r = await apiPost({action:'salvarHist',registro,acao,aba,usuario:usuario?usuario.nome:''});
   if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvar',registro});
+  return r;
+}
+async function postAbertura(registro,acao){return postHist(registro,acao,'ABERTURA DE PASTA')}
+async function postLeadHist(registro,acao){
+  let r = await apiPost({action:'salvarLeadHist',registro,acao,usuario:usuario?usuario.nome:''});
+  if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvarLead',registro});
+  return r;
+}
+async function postAgHist(registro,acao){
+  let r = await apiPost({action:'salvarAgHist',registro,acao,usuario:usuario?usuario.nome:''});
+  if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvarAgendamento',registro});
   return r;
 }
 
@@ -1914,21 +1956,36 @@ function renderBaseLeads(){
   dadosExport.baseLeads = vis; // exporta exatamente o que está filtrado na tela
 }
 
-async function abrirMovAbertura(){
+let movsCache = [];
+async function abrirMovAbertura(filtroAba){
   loading(true,'Carregando histórico…');
   const r = await apiPost({action:'listarMovAbertura'});
   loading(false);
   if(!r.ok){toast(String(r.erro||'').includes('Ação inválida')?'Atualize o Code.gs (Nova versão) para usar o histórico':'Erro: '+r.erro);return}
-  const movs = r.movimentos||[];
-  $('corpoMovAb').innerHTML = movs.map(m=>`<tr>
+  movsCache = r.movimentos||[];
+  const abas = [...new Set(movsCache.map(m=>String(m.ABA||'').trim()).filter(Boolean))].sort();
+  $('mvFiltroAba').innerHTML = '<option value="">Todas as abas</option>'+abas.map(a=>`<option ${normaliza(a)===normaliza(filtroAba||'')?'selected':''}>${esc(a)}</option>`).join('');
+  if(filtroAba && !abas.some(a=>normaliza(a)===normaliza(filtroAba))) $('mvFiltroAba').value='';
+  $('mvBusca').value='';
+  renderMovAb();
+  $('mMovAb').classList.add('aberto');
+}
+function renderMovAb(){
+  const fAba = normaliza($('mvFiltroAba').value), q = normaliza($('mvBusca').value);
+  const vis = movsCache.filter(m=>{
+    if(fAba && normaliza(m.ABA)!==fAba)return false;
+    if(q && !(normaliza(m.CLIENTE).includes(q)||normaliza(m.USUARIO).includes(q)))return false;
+    return true;
+  });
+  $('corpoMovAb').innerHTML = vis.map(m=>`<tr>
       <td style="white-space:nowrap">${esc(m.QUANDO)}</td>
+      <td style="font-size:11px">${esc(m.ABA||'')}</td>
       <td title="${esc(m.USUARIO)}">${esc(m.USUARIO)}</td>
       <td title="${esc(m.CLIENTE)}"><b>${esc(m.CLIENTE)}</b></td>
       <td title="${esc(m.ACAO)}">${esc(m.ACAO)}</td>
-      <td class="acao"><button class="btn btn-mini btn-perigo" onclick="desfazerMov('${m.ID}')" title="Apaga este movimento e devolve a pasta ao estado anterior">Desfazer</button></td>
+      <td class="acao"><button class="btn btn-mini btn-perigo" onclick="desfazerMov('${m.ID}')" title="Apaga este movimento e devolve o registro ao estado anterior">Desfazer</button></td>
     </tr>`).join('');
-  $('vazioMovAb').style.display = movs.length?'none':'block';
-  $('mMovAb').classList.add('aberto');
+  $('vazioMovAb').style.display = vis.length?'none':'block';
 }
 
 async function desfazerMov(idMov){
@@ -2443,7 +2500,7 @@ async function salvarLead(){
   }
   if(leadEditId)reg.ID=leadEditId;
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvarLead',registro:reg});
+  const resp = leadEditId ? await postLeadHist(reg,'Lead editado') : await apiPost({action:'salvarLead',registro:reg});
   loading(false);
   if(resp.ok){
     if(nomeEstagInd){
@@ -2679,7 +2736,7 @@ async function salvarNovoAgendamento(){
   if(!reg.NOME){toast('Informe o nome');return}
   if(agEditId) reg.ID = agEditId;
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvarAgendamento',registro:reg});
+  const resp = agEditId ? await postAgHist(reg,'Agendamento editado') : await apiPost({action:'salvarAgendamento',registro:reg});
   loading(false);
   if(resp.ok){
     if(agEditId){
@@ -2706,7 +2763,7 @@ async function agMudaStatus(id,valor){
     return;
   }
   loading(true,'Salvando…');
-  const resp = await apiPost({action:'salvarAgendamento',registro:{ID:id,STATUS:valor,AGENDA_DATA:'',AGENDA_HORA:'',ADVOGADO:''}});
+  const resp = await postAgHist({ID:id,STATUS:valor,AGENDA_DATA:'',AGENDA_HORA:'',ADVOGADO:''},'Agendamento: '+valor);
   loading(false);
   if(resp.ok){if(r){r.STATUS=valor;r.AGENDA_DATA='';r.AGENDA_HORA='';r.ADVOGADO=''}renderAgendamentos();toast('Status salvo')}
   else toast('Erro: '+resp.erro);
