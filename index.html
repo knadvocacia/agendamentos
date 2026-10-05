@@ -586,7 +586,7 @@ td.acao{white-space:nowrap}
 <section class="painel" id="painel-abertura">
   <div class="barra">
     <span class="fechados-badge" id="badgeAbertas" onclick="trocarSubAba('historico')" title="Clique para ver as pastas abertas">PASTAS ABERTAS: 0</span>
-    <span class="fechados-badge badge-amarelo" id="badgeNaoAbertas" onclick="filtrarAbertura('')" title="Clique para ver as pastas em aberto">PASTAS NÃO ABERTAS: 0</span>
+    <span class="fechados-badge badge-amarelo" id="badgeNaoAbertas" onclick="filtrarAbertura('')" title="Clique para ver SÓ as pastas não abertas; clique de novo para voltar a mostrar também as já abertas">PASTAS NÃO ABERTAS: 0</span>
     <span class="fechados-badge badge-vermelho" id="badgeFaltDoc" onclick="filtrarAbertura('FALTANDO DOCUMENTAÇÃO')" title="Pastas em aberto com documentação FALTANDO — clique para ver a lista">FALTANDO DOCUMENTAÇÃO: 0</span>
     <div class="sub-abas">
       <button class="sub-aba ativa" id="subPendentes" onclick="trocarSubAba('pendentes')">Em aberto</button>
@@ -1172,10 +1172,17 @@ function filtrarAtendPorBadge(status,docSit){
   if(selDoc) selDoc.value = jaAplicado ? '' : docSit;
   renderizar();
 }
+let apSoNaoAbertas = false; // modo do badge PASTAS NÃO ABERTAS: só as pendentes
 function filtrarAbertura(docSit){
   trocarSubAba('pendentes');
   const sel = document.querySelector('[data-fa="DOC_SITUACAO"]');
-  if(sel) sel.value = docSit;
+  if(docSit===''){
+    apSoNaoAbertas = !apSoNaoAbertas; // clicar de novo volta a mostrar tudo
+    if(sel) sel.value='';
+  }else{
+    apSoNaoAbertas = false; // FALTANDO já exclui as abertas pelo próprio filtro
+    if(sel) sel.value = docSit;
+  }
   renderizar();
 }
 
@@ -1349,7 +1356,8 @@ function renderizar(){
   $('badgeNaoAbertas').textContent = 'PASTAS NÃO ABERTAS: '+pendentes.length;
   $('badgeFaltDoc').textContent = 'FALTANDO DOCUMENTAÇÃO: '+pendentes.filter(r=>normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO').length;
 
-  $('corpoAbertura').innerHTML = pendentes.concat(abertasNaLista).map(r=>{
+  const abertasVisiveis = apSoNaoAbertas ? [] : abertasNaLista;
+  $('corpoAbertura').innerHTML = pendentes.concat(abertasVisiveis).map(r=>{
     const ok = normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK';
     const faltando = normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO';
     const cor = ok?'st-verde':(faltando?'st-amarelo':'');
@@ -1372,7 +1380,7 @@ function renderizar(){
         <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')">Ficha</button>
       </td>
     </tr>`}).join('');
-  $('vazioAbertura').style.display = (pendentes.length+abertasNaLista.length)?'none':'block';
+  $('vazioAbertura').style.display = (pendentes.length+abertasVisiveis.length)?'none':'block';
 
   /* --- histórico --- */
   const fh = {};
@@ -1869,6 +1877,7 @@ function trocarSubAba(qual){
 }
 function limparFiltrosAp(){
   document.querySelectorAll('[data-fa]').forEach(el=>el.value='');
+  apSoNaoAbertas = false;
   renderizar();
 }
 function limparFiltrosConf(){
