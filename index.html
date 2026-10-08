@@ -517,7 +517,6 @@ td.acao{white-space:nowrap}
   <div class="barra">
     <button class="btn btn-principal" onclick="abrirFicha()">+ Novo atendimento</button>
     <button class="btn btn-mini btn-borda" onclick="abrirEditarAtendLote()" id="btnAtendLote">Editar selecionados (0)</button>
-    <button class="btn btn-mini btn-borda" onclick="marcarPrioridadeSel()" title="Marca os selecionados como PRIORIDADE de abertura de pasta (ficam no topo da aba Abertura); selecionar atendimentos já prioritários desmarca">&#9873; Prioridade</button>
     <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirAtendSel()">Excluir selecionados</button>
     <span class="fechados-badge" id="badgeFechados" onclick="filtrarAtendPorBadge('FECHOU','')" title="Clique para ver a lista dos fechados">CLIENTES FECHADOS: 0</span>
     <span class="fechados-badge badge-amarelo" id="badgeFechFaltDoc" onclick="filtrarAtendPorBadge('FECHOU','FALTANDO DOCUMENTAÇÃO')" title="Clique para ver a lista">FECHADOS FALTANDO DOCS: 0</span>
@@ -826,6 +825,12 @@ td.acao{white-space:nowrap}
           <textarea id="f_CONF_OBS_VIS" rows="4" readonly style="background:#fdf3f4;border-color:#e4b6bd;color:#6b1f2b;resize:vertical"></textarea>
         </div>
 
+        <div class="campo"><label>Prioridade de abertura</label>
+          <select id="f_PRIORIDADE" title="SIM = pasta urgente: fica no topo da aba Abertura de Pasta com o aviso PRIORIDADE">
+            <option value="">NÃO</option>
+            <option value="SIM">SIM</option>
+          </select>
+        </div>
         <div class="campo"><label>Origem</label>
           <select id="f_ORIGEM" title="Novo atendimento criado manualmente = indicação; leads distribuídos chegam como LEAD">
             <option value=""></option>
@@ -1186,25 +1191,6 @@ function filtrarAbertura(docSit){
   renderizar();
 }
 
-async function marcarPrioridadeSel(){
-  if(!atendSel.size){toast('Marque ao menos um atendimento na lista');return}
-  const ids=[...atendSel];
-  // se todos os selecionados já são prioridade, o clique desmarca
-  const selecionados = registros.filter(r=>atendSel.has(r.ID));
-  const todosPri = selecionados.length && selecionados.every(r=>String(r.PRIORIDADE||'')==='SIM');
-  const valor = todosPri ? '' : 'SIM';
-  if(!confirm((valor?'Marcar':'Desmarcar')+' PRIORIDADE de abertura de pasta para '+ids.length+' atendimento(s)?'))return;
-  loading(true,'Salvando prioridade…');
-  const r = await apiPost({action:'marcarPrioridade',ids,valor});
-  loading(false);
-  if(r.ok){
-    selecionados.forEach(x=>x.PRIORIDADE=valor);
-    atendSel.clear();
-    renderizar();
-    toast(r.total+' atendimento(s) '+(valor?'marcados como PRIORIDADE':'sem prioridade'));
-  }else toast(String(r.erro||'').includes('Ação inválida')?'Atualize o Code.gs (Nova versão) para usar a Prioridade':'Erro: '+r.erro);
-}
-
 async function salvarAtendLote(){
   const campos = {};
   if($('atl_DATA').value) campos.DATA = dataBR($('atl_DATA').value);
@@ -1547,7 +1533,7 @@ function abrirFicha(id){
   const g = c => fichaAtual ? (fichaAtual[c]||'') : '';
   $('f_DATA').value = dataISO(g('DATA'))||g('DATA');
   $('f_DATA_SAIDA').value = dataISO(g('DATA_SAIDA'))||g('DATA_SAIDA');
-  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM']
+  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM','PRIORIDADE']
     .forEach(c=>$('f_'+c).value=g(c));
   // o campo Horário saiu da aba Atendimentos (o dado antigo é preservado)
   $('f_HORARIO').closest('.campo').style.display='none';
@@ -1596,6 +1582,7 @@ async function salvarFicha(){
     OBSERVACOES: $('f_OBSERVACOES').value.trim(),
     STATUS: $('f_STATUS').value,
     ORIGEM: $('f_ORIGEM').value,
+    PRIORIDADE: $('f_PRIORIDADE').value,
     INDICACAO: $('f_INDICACAO').value.trim(),
     RETORNO_DIA_HORARIO: $('f_RETORNO_DIA_HORARIO').value.trim()
   };
