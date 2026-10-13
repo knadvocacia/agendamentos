@@ -144,12 +144,13 @@ td.acao{white-space:nowrap}
 #mBaseLeads th,#mBaseLeads td{padding:3px 7px;font-size:11.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #mBaseLeads th:nth-child(1),#mBaseLeads td:nth-child(1){width:6%}
 #mBaseLeads th:nth-child(2),#mBaseLeads td:nth-child(2){width:7%}
-#mBaseLeads th:nth-child(3),#mBaseLeads td:nth-child(3){width:21%}
-#mBaseLeads th:nth-child(4),#mBaseLeads td:nth-child(4){width:12%}
-#mBaseLeads th:nth-child(5),#mBaseLeads td:nth-child(5){width:19%}
-#mBaseLeads th:nth-child(6),#mBaseLeads td:nth-child(6){width:12%}
-#mBaseLeads th:nth-child(7),#mBaseLeads td:nth-child(7){width:13%}
-#mBaseLeads th:nth-child(8),#mBaseLeads td:nth-child(8){width:10%}
+#mBaseLeads th:nth-child(3),#mBaseLeads td:nth-child(3){width:7%}
+#mBaseLeads th:nth-child(4),#mBaseLeads td:nth-child(4){width:19%}
+#mBaseLeads th:nth-child(5),#mBaseLeads td:nth-child(5){width:11%}
+#mBaseLeads th:nth-child(6),#mBaseLeads td:nth-child(6){width:17%}
+#mBaseLeads th:nth-child(7),#mBaseLeads td:nth-child(7){width:11%}
+#mBaseLeads th:nth-child(8),#mBaseLeads td:nth-child(8){width:12%}
+#mBaseLeads th:nth-child(9),#mBaseLeads td:nth-child(9){width:10%}
 #mBaseLeads .pill{font-size:10px;padding:2px 7px}
 .modal-topo{padding:16px 22px;border-bottom:1px solid var(--linha);display:flex;justify-content:space-between;align-items:center}
 .modal-topo h2{font-family:'Spectral',serif;font-size:18px;color:var(--navy)}
@@ -268,7 +269,7 @@ td.acao{white-space:nowrap}
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsSel()">Excluir selecionados</button>
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsTodosUI()" title="Apaga todos os leads da lista, inclusive os já enviados aos estagiários">Excluir TODOS</button>
     </span>
-    <span style="color:var(--cinza);font-size:12px" id="dicaEstagiario">Info <b>ESTAGIÁRIO</b> = envio automático de até <b>15 leads/dia por estagiário</b> na aba Atendimentos, de <b>segunda a sexta</b>, sem duplicidade (cada lead vai 1 única vez)</span>
+    <span style="color:var(--cinza);font-size:12px" id="dicaEstagiario">Info <b>ESTAGIÁRIO</b> = envio automático de até <b>15 leads/dia por estagiário</b> na aba Atendimentos, de <b>segunda a sexta</b>, sem duplicidade (cada lead vai 1 única vez) · lead com <b>praça</b> só vai para estagiário da mesma praça</span>
     <datalist id="dlInfo"><option value="ROBO"><option value="ESTAGIÁRIO"></datalist>
     <div class="direita" style="align-items:flex-end">
       <span style="display:flex;flex-direction:column;gap:4px;align-items:stretch">
@@ -285,6 +286,7 @@ td.acao{white-space:nowrap}
         <tr class="filtros">
           <th style="width:34px"></th>
           <th><input data-fl="BASE" placeholder="mm/aaaa"></th>
+          <th><input data-fl="PRACA" placeholder="Praça"></th>
           <th><input data-fl="DATA" placeholder="Filtrar"></th>
           <th><input data-fl="NOME" placeholder="Filtrar"></th>
           <th><input data-fl="TELEFONE" placeholder="Filtrar"></th>
@@ -294,7 +296,7 @@ td.acao{white-space:nowrap}
         </tr>
         <tr class="nomes">
           <th style="width:34px"><input type="checkbox" id="leadSelTodos" onchange="selTodosLeads(this.checked)" title="Selecionar todos os visíveis"></th>
-          <th>Base</th><th title="Data em que o lead foi enviado ao estagiário">Data envio</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Info</th><th>Ações</th>
+          <th>Base</th><th title="Praça de Atendimento: lead com praça só é distribuído para estagiário da mesma praça">Praça</th><th title="Data em que o lead foi enviado ao estagiário">Data envio</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Info</th><th>Ações</th>
         </tr>
       </thead>
       <tbody id="corpoLead"></tbody>
@@ -319,6 +321,7 @@ td.acao{white-space:nowrap}
           </div>
           <button type="button" class="btn btn-mini btn-borda" style="margin-top:4px;align-self:flex-start" onclick="addTelLead()">+ telefone</button>
         </div>
+        <div class="campo"><label>Praça</label><input id="ld_PRACA" placeholder="RJ, SP, CURITIBA…" title="Lead com praça só é distribuído para estagiário da mesma praça; em branco, vai para qualquer um"></div>
         <div class="campo"><label>Base (mês/ano)</label><input type="month" id="ld_BASE"></div>
         <div class="campo"><label>Data do envio</label><input type="date" id="ld_DATA" title="Preenchida automaticamente quando o lead é enviado ao estagiário"></div>
         <div class="campo c2"><label>Empresa</label><input id="ld_EMPRESA"></div>
@@ -373,13 +376,14 @@ td.acao{white-space:nowrap}
         <select id="blStatus" onchange="renderBaseLeads()" style="padding:6px 9px;border:1px solid var(--linha);border-radius:6px"><option value="">Todos os status</option></select>
         <input id="blResp" placeholder="Responsável" style="width:150px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderBaseLeads()">
         <input id="blBase" placeholder="Base mm/aaaa" style="width:110px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderBaseLeads()">
+        <input id="blPraca" placeholder="Praça" style="width:90px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderBaseLeads()">
         <span id="blTotal" style="font-size:12px;color:var(--cinza)"></span>
         <button class="btn btn-mini btn-borda" onclick="exportarExcel('baseLeads')" title="Baixar a lista filtrada em Excel">&#11015; Excel</button>
         <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('baseLeads')" title="Baixar a lista filtrada em PDF">&#11015; PDF</button>
       </div>
       <div class="bl-rolagem">
         <table>
-          <thead><tr class="nomes"><th>Base</th><th>Data</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th><th>Status</th><th>Situação</th></tr></thead>
+          <thead><tr class="nomes"><th>Base</th><th>Praça</th><th>Data</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th><th>Status</th><th>Situação</th></tr></thead>
           <tbody id="corpoBaseLeads"></tbody>
         </table>
         <div class="vazio" id="vazioBaseLeads" style="display:none">Nenhum lead encontrado.</div>
@@ -425,6 +429,7 @@ td.acao{white-space:nowrap}
         Os campos preenchidos abaixo serão aplicados a <b>todos os leads selecionados</b>. Campos em branco não são alterados.
       </div>
       <div class="grade" style="grid-template-columns:1fr 1fr">
+        <div class="campo"><label>Praça</label><input id="lote_PRACA" placeholder="RJ, SP, CURITIBA…"></div>
         <div class="campo"><label>Base (mês/ano)</label><input type="month" id="lote_BASE"></div>
         <div class="campo"><label>Data do envio</label><input type="date" id="lote_DATA"></div>
         <div class="campo"><label>Info</label><input id="lote_INFO" list="dlInfo" placeholder="ROBO ou ESTAGIÁRIO"></div>
@@ -954,6 +959,7 @@ td.acao{white-space:nowrap}
         <input type="text" id="novoNome" placeholder="Nome do usuário">
         <input type="text" id="novaSenha" placeholder="Senha" style="width:120px">
         <select id="novoTipo" title="Tipo do usuário"><option>ADVOGADO</option><option>ESTAGIÁRIO</option><option>ATENDENTE</option><option>ABERTURA DE PASTA</option></select>
+        <input type="text" id="novaPraca" placeholder="Praça (RJ, SP, CURITIBA…)" style="width:140px" title="Praça de Atendimento — obrigatória: região em que o usuário trabalha">
         <span class="abas-check">
           <label><input type="checkbox" id="novoLead"> Lead</label>
           <label><input type="checkbox" id="novoAgend"> Agendamentos</label>
@@ -1995,22 +2001,24 @@ async function abrirBaseLeads(){
   baseLeadsCache = r.leads||[];
   const sts = [...new Set(baseLeadsCache.map(l=>String(l.STATUS||'').trim()).filter(Boolean))].sort();
   $('blStatus').innerHTML = '<option value="">Todos os status</option>'+sts.map(s=>`<option>${esc(s)}</option>`).join('');
-  ['blBusca','blResp','blBase'].forEach(id=>$(id).value='');
+  ['blBusca','blResp','blBase','blPraca'].forEach(id=>$(id).value='');
   renderBaseLeads();
   $('mBaseLeads').classList.add('aberto');
 }
 function renderBaseLeads(){
   const q = normaliza($('blBusca').value), st = normaliza($('blStatus').value);
-  const resp = normaliza($('blResp').value), bs = $('blBase').value.trim();
+  const resp = normaliza($('blResp').value), bs = $('blBase').value.trim(), prq = normaliza($('blPraca').value);
   const vis = baseLeadsCache.filter(l=>{
     if(q && !(normaliza(l.NOME).includes(q)||normaliza(l.TELEFONE).includes(q)||normaliza(l.EMPRESA).includes(q)))return false;
     if(st && normaliza(l.STATUS)!==st)return false;
     if(resp && !normaliza(l.RESPONSAVEL).includes(resp))return false;
     if(bs && !baseMes(l.BASE).includes(bs))return false;
+    if(prq && !normaliza(l.PRACA).includes(prq))return false;
     return true;
   });
   $('corpoBaseLeads').innerHTML = vis.map(l=>`<tr>
       <td title="${esc(baseMes(l.BASE))}">${esc(baseMes(l.BASE))}</td>
+      <td title="${esc(l.PRACA||'')}">${esc(l.PRACA||'')}</td>
       <td title="${esc(dataBR(l.DATA))}">${esc(dataBR(l.DATA))}</td>
       <td title="${esc(l.NOME)}"><b>${esc(l.NOME)}</b></td>
       <td title="${esc(l.TELEFONE)}">${esc(l.TELEFONE)}</td>
@@ -2350,6 +2358,7 @@ function renderLeads(){
     return `<tr class="${r.ATENDENTE?'st-verde':''}">
       <td style="text-align:center"><input type="checkbox" ${leadSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleLeadSel('${r.ID}',this.checked)" ${estag?'disabled':''}></td>
       <td>${esc(baseMes(r.BASE))}</td>
+      <td title="${esc(r.PRACA||'')}">${esc(r.PRACA||'')}</td>
       <td>${leadEnviado(r)?esc(dataBR(r.DATA)):''}</td>
       <td><b>${esc(r.NOME)}</b></td>
       <td>${esc(r.TELEFONE)}</td>
@@ -2429,13 +2438,15 @@ async function atribuirLeadsSel(){
 function abrirEditarLote(){
   if(!leadSel.size){toast('Marque ao menos um lead na lista');return}
   $('loteTitulo').textContent = 'Editar '+leadSel.size+' selecionado(s)';
-  ['lote_BASE','lote_DATA','lote_INFO','lote_EMPRESA','lote_ESTAG'].forEach(id=>$(id).value='');
+  ['lote_BASE','lote_PRACA','lote_DATA','lote_INFO','lote_EMPRESA','lote_ESTAG'].forEach(id=>$(id).value='');
   $('mLeadLote').classList.add('aberto');
 }
 
 async function salvarEditarLote(){
   const campos = {};
   const bs = $('lote_BASE').value, d = $('lote_DATA').value, e = $('lote_EMPRESA').value.trim(), i = $('lote_INFO').value.trim(), es = $('lote_ESTAG').value.trim();
+  const pr = $('lote_PRACA').value.trim().toUpperCase();
+  if(pr) campos.PRACA = pr;
   if(bs) campos.BASE = bs.slice(5,7)+'/'+bs.slice(0,4);
   if(d) campos.DATA = dataBR(d);
   if(e) campos.EMPRESA = e;
@@ -2526,7 +2537,7 @@ function getTelsLead(){
 function abrirNovoLead(){
   leadEditId = null;
   $('leadTitulo').textContent = 'Novo lead';
-  ['ld_NOME','ld_EMPRESA','ld_ATENDENTE','ld_ESTAG'].forEach(id=>$(id).value='');
+  ['ld_NOME','ld_EMPRESA','ld_ATENDENTE','ld_ESTAG','ld_PRACA'].forEach(id=>$(id).value='');
   setTelsLead('');
   const hj=new Date();
   $('ld_BASE').value = hj.getFullYear()+'-'+String(hj.getMonth()+1).padStart(2,'0');
@@ -2540,6 +2551,7 @@ function abrirEditarLead(id){
   leadEditId = id;
   $('leadTitulo').textContent = 'Editar — '+(r.NOME||'');
   $('ld_NOME').value=r.NOME||'';setTelsLead(r.TELEFONE||'');
+  $('ld_PRACA').value=r.PRACA||'';
   $('ld_EMPRESA').value=r.EMPRESA||'';$('ld_ATENDENTE').value=r.ATENDENTE||'';
   $('ld_ESTAG').value='';
   $('ld_DATA').value = leadEnviado(r)?(dataISO(r.DATA)||''):'';
@@ -2553,6 +2565,7 @@ async function salvarLead(){
     TELEFONE:getTelsLead(),
     EMPRESA:$('ld_EMPRESA').value.trim(),
     DATA:dataBR($('ld_DATA').value),
+    PRACA:$('ld_PRACA').value.trim().toUpperCase(),
     BASE:$('ld_BASE').value ? $('ld_BASE').value.slice(5,7)+'/'+$('ld_BASE').value.slice(0,4) : '',
     ATENDENTE:$('ld_ATENDENTE').value.trim()
   };
@@ -2614,13 +2627,18 @@ function importarLeads(input){
     if(!linhas.length){toast('Arquivo vazio');return}
     // detecta cabeçalho e a posição de cada coluna (INFO = ROBO/ESTAGIÁRIO)
     const cab = linhas[0].map(normaliza);
-    let idx = {NOME:0,TELEFONE:1,EMPRESA:2,DATA:3,INFO:4};
+    let idx = {NOME:0,TELEFONE:1,EMPRESA:2,DATA:3,INFO:4,PRACA:-1};
     let temCab = false;
-    ['NOME','TELEFONE','EMPRESA','DATA','INFO'].forEach(c=>{
+    ['NOME','TELEFONE','EMPRESA','DATA','INFO','PRACA'].forEach(c=>{
       const p = cab.findIndex(x=>x===c||x.includes(c));
       if(p>=0){idx[c]=p;temCab=true}
     });
     // a coluna de Info também é reconhecida por outros nomes ou pelo conteúdo
+    // a coluna de Praça também é reconhecida por CIDADE/REGIÃO/UF
+    if(idx.PRACA<0){
+      const pPr = cab.findIndex(x=>x.includes('PRACA')||x.includes('CIDADE')||x.includes('REGIAO')||x==='UF');
+      if(pPr>=0){idx.PRACA=pPr;temCab=true}
+    }
     if(cab.findIndex(x=>x==='INFO'||x.includes('INFO'))<0){
       const pAlt = cab.findIndex(x=>x.includes('ATENDENTE')||x.includes('ROBO')||x.includes('ESTAG'));
       if(pAlt>=0){idx.INFO=pAlt;temCab=true}
@@ -2639,6 +2657,7 @@ function importarLeads(input){
       EMPRESA:String(l[idx.EMPRESA]||'').trim(),
       // DATA fica em branco: será preenchida com o dia do envio ao estagiário;
       // a BASE (mês/ano da importação) é gravada automaticamente pelo servidor
+      PRACA:idx.PRACA>=0?String(l[idx.PRACA]||'').trim().toUpperCase():'',
       ATENDENTE:infoValida(l[idx.INFO])||''
     }));
     const nEst = regs.filter(r=>r.ATENDENTE==='ESTAGIÁRIO').length;
@@ -3209,7 +3228,7 @@ let subAtual = 'pendentes';
 
 const EXPORT_DEFS = {
   baseLeads: {titulo:'Base de Leads', colunas:[
-    ['BASE','Base',55],['DATA','Data',60],['NOME','Nome',150],['TELEFONE','Telefone',90],
+    ['BASE','Base',55],['PRACA','Praça',60],['DATA','Data',60],['NOME','Nome',150],['TELEFONE','Telefone',90],
     ['EMPRESA','Empresa',130],['RESPONSAVEL','Responsável',100],['STATUS','Status',110],['SITUACAO','Situação',120]]},
   atendimentos: {titulo:'Atendimentos', colunas:[
     ['DATA','Data',60],['DOC_SITUACAO','Documentação',80],['NOME','Nome',120],['TELEFONE','Telefone',75],
@@ -3470,6 +3489,7 @@ function renderUsuarios(){
         <option ${normaliza(u.tipo||'')==='ATENDENTE'?'selected':''}>ATENDENTE</option>
         <option ${normaliza(u.tipo||'')==='ABERTURA DE PASTA'?'selected':''}>ABERTURA DE PASTA</option>
       </select>
+      <input type="text" id="uPraca_${i}" value="${esc(u.praca||'')}" placeholder="Praça" style="width:90px" title="Praça de Atendimento (região) — leads com praça só são distribuídos para quem é da mesma praça">
       <span class="abas-check">
         <label><input type="checkbox" id="uLead_${i}" ${abas.includes('lead')?'checked':''}> Lead</label>
         <label><input type="checkbox" id="uAgend_${i}" ${abas.includes('agendamentos')?'checked':''}> Agendamentos</label>
@@ -3501,23 +3521,27 @@ function abasMarcadas(atendId,abertId,inicId,ajuizId,agendId,agendaId,confId,lea
 
 async function adicionarUsuario(){
   const nome=$('novoNome').value.trim(), senha=$('novaSenha').value.trim();
+  const praca=$('novaPraca').value.trim().toUpperCase();
   const abas=abasMarcadas('novoAtend','novoAbert','novoInic','novoAjuiz','novoAgend','novoAgenda','novoConf','novoLead');
   if(!nome||!senha){toast('Informe nome e senha');return}
+  if(!praca){toast('Informe a Praça de Atendimento (ex.: RJ, SP, CURITIBA)');return}
   if(!abas){toast('Marque ao menos uma aba');return}
   loading(true,'Salvando…');
-  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,tipo:$('novoTipo').value});
+  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('novoTipo').value});
   loading(false);
-  if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();$('novoNome').value='';$('novaSenha').value='';toast('Usuário adicionado')}
+  if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();$('novoNome').value='';$('novaSenha').value='';$('novaPraca').value='';toast('Usuário adicionado')}
   else toast(r.erro);
 }
 
 async function salvarUsuario(i){
   const nome=$('uNome_'+i).value.trim(), senha=$('uSenha_'+i).value.trim();
+  const praca=$('uPraca_'+i).value.trim().toUpperCase();
   const abas=abasMarcadas('uAtend_'+i,'uAbert_'+i,'uInic_'+i,'uAjuiz_'+i,'uAgend_'+i,'uAgenda_'+i,'uConf_'+i,'uLead_'+i);
   if(!nome||!senha){toast('Informe nome e senha');return}
+  if(!praca){toast('Informe a Praça de Atendimento (ex.: RJ, SP, CURITIBA)');return}
   if(!abas){toast('Marque ao menos uma aba');return}
   loading(true,'Salvando…');
-  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,tipo:$('uTipo_'+i).value,nomeAntigo:listaUsuariosCache[i].nome});
+  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('uTipo_'+i).value,nomeAntigo:listaUsuariosCache[i].nome});
   loading(false);
   if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();toast('Usuário atualizado')}
   else toast(r.erro);
