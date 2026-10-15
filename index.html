@@ -591,7 +591,7 @@ td.acao{white-space:nowrap}
   <div class="barra">
     <span class="fechados-badge" id="badgeAbertas" onclick="trocarSubAba('historico')" title="Clique para ver as pastas abertas">PASTAS ABERTAS: 0</span>
     <span class="fechados-badge badge-amarelo" id="badgeNaoAbertas" onclick="filtrarAbertura('')" title="Clique para ver SÓ as pastas não abertas; clique de novo para voltar a mostrar também as já abertas">PASTAS NÃO ABERTAS: 0</span>
-    <span class="fechados-badge badge-vermelho" id="badgeFaltDoc" onclick="filtrarAbertura('FALTANDO DOCUMENTAÇÃO')" title="Pastas em aberto com documentação FALTANDO — clique para ver a lista">FALTANDO DOCUMENTAÇÃO: 0</span>
+    <span class="fechados-badge badge-vermelho" id="badgeFaltDoc" onclick="verAguardandoDocs()" title="Clientes FECHADOS ainda SEM os documentos obrigatórios anexados — não entram na Abertura e seguem com o estagiário em Atendimentos. Clique para ver quem está aguardando; clique de novo para voltar.">AGUARDANDO DOCS (COM ESTAGIÁRIO): 0</span>
     <div class="sub-abas">
       <button class="sub-aba ativa" id="subPendentes" onclick="trocarSubAba('pendentes')">Em aberto</button>
       <button class="sub-aba" id="subHistorico" onclick="trocarSubAba('historico')">Pastas abertas</button>
@@ -1190,16 +1190,24 @@ function filtrarAtendPorBadge(status,docSit){
   renderizar();
 }
 let apSoNaoAbertas = false; // modo do badge PASTAS NÃO ABERTAS: só as pendentes
+let apVerAguardando = false; // modo do badge AGUARDANDO DOCS: fechados ainda sem os obrigatórios
 function filtrarAbertura(docSit){
   trocarSubAba('pendentes');
+  apVerAguardando = false;
   const sel = document.querySelector('[data-fa="DOC_SITUACAO"]');
   if(docSit===''){
     apSoNaoAbertas = !apSoNaoAbertas; // clicar de novo volta a mostrar tudo
     if(sel) sel.value='';
   }else{
-    apSoNaoAbertas = false; // FALTANDO já exclui as abertas pelo próprio filtro
+    apSoNaoAbertas = false;
     if(sel) sel.value = docSit;
   }
+  renderizar();
+}
+function verAguardandoDocs(){
+  trocarSubAba('pendentes');
+  apVerAguardando = !apVerAguardando;
+  apSoNaoAbertas = false;
   renderizar();
 }
 
@@ -1332,7 +1340,12 @@ function renderizar(){
   const listaAbertura = fechados.filter(r=>
     (!mesAp || dataISO(r.DATA_FECHAMENTO).slice(0,7)===mesAp) &&
     Object.entries(fa).every(([c,v])=>normaliza(r[c]).includes(v)));
-  const pendentes = listaAbertura.filter(r=>!noHistorico(r));
+  const pendTodas = listaAbertura.filter(r=>!noHistorico(r));
+  // só chega na Abertura o FECHOU com TODOS os documentos obrigatórios anexados;
+  // sem os docs, o cliente fica com o estagiário na aba Atendimentos (lista "aguardando")
+  const aguardandoDocs = pendTodas.filter(r=>docsObrigFaltantes(r).length>0)
+    .sort((a,b)=>chaveData(a.DATA_FECHAMENTO).localeCompare(chaveData(b.DATA_FECHAMENTO)));
+  const pendentes = pendTodas.filter(r=>docsObrigFaltantes(r).length===0);
   // PRIORIDADE sempre no topo da lista de abertura
   const ehPri = r=>String(r.PRIORIDADE||'')==='SIM';
   // pastas já abertas (DOC OK + nº pasta) continuam visíveis para corrigir erros
@@ -1342,7 +1355,7 @@ function renderizar(){
 
   /* --- passivo (totais gerais, sem filtros) --- */
   const stIniPassivo = r => { const s=normaliza(r.INICIAL_STATUS); return (!s||s==='AJUSTES'||s==='PENDENTE DE DOCUMENTOS'||s==='PENDENTE DE INFORMACOES')?'PENDENTE':s; };
-  const nNaoAbertas = fechados.filter(r=>!noHistorico(r)).length;
+  const nNaoAbertas = fechados.filter(r=>!noHistorico(r) && docsObrigFaltantes(r).length===0).length;
   const nNaoElaboradas = pastasAbertas.filter(r=>stIniPassivo(r)!=='FEITO').length;
   const nNaoAjuizadas = pastasAbertas.filter(r=>stIniPassivo(r)==='FEITO' && normaliza(r.AJUIZ_STATUS)!=='AJUIZADO').length;
   $('badgePassivo').textContent = 'PASSIVO: '+(nNaoAbertas+nNaoElaboradas+nNaoAjuizadas);
@@ -1352,16 +1365,17 @@ function renderizar(){
 
   $('badgeAbertas').textContent = 'PASTAS ABERTAS: '+historico.length;
   $('badgeNaoAbertas').textContent = 'PASTAS NÃO ABERTAS: '+pendentes.length;
-  $('badgeFaltDoc').textContent = 'FALTANDO DOCUMENTAÇÃO: '+pendentes.filter(r=>normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO').length;
+  $('badgeFaltDoc').textContent = (apVerAguardando?'\u25c0 VOLTAR \u00b7 ':'')+'AGUARDANDO DOCS (COM ESTAGIÁRIO): '+aguardandoDocs.length;
 
-  const abertasVisiveis = apSoNaoAbertas ? [] : abertasNaLista;
-  $('corpoAbertura').innerHTML = pendentes.concat(abertasVisiveis).map(r=>{
+  const abertasVisiveis = (apSoNaoAbertas||apVerAguardando) ? [] : abertasNaLista;
+  const linhasAbertura = apVerAguardando ? aguardandoDocs : pendentes.concat(abertasVisiveis);
+  $('corpoAbertura').innerHTML = linhasAbertura.map(r=>{
     const ok = normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK';
     const faltando = normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO';
     const cor = ok?'st-verde':(faltando?'st-amarelo':'');
     return `<tr class="${ehPri(r)?'st-vermelho':cor}">
       <td>${esc(dataBR(r.DATA_FECHAMENTO))}</td>
-      <td><b>${esc(r.NOME)}</b>${ehPri(r)?' <span class="docs-chip" title="Marcado como prioridade na aba Atendimentos" style="background:#fff;color:#a01212;font-weight:700">&#9873; PRIORIDADE</span>':''}</td><td>${esc(r.EMPRESA)}</td><td>${esc(r.TELEFONE)}</td>
+      <td><b>${esc(r.NOME)}</b>${ehPri(r)?' <span class="docs-chip" title="Marcado como prioridade na aba Atendimentos" style="background:#fff;color:#a01212;font-weight:700">&#9873; PRIORIDADE</span>':''}${docsObrigFaltantes(r).length?` <span class="docs-chip" title="Faltando: ${esc(docsObrigFaltantes(r).join(', '))}" style="background:var(--vermelho-bg);color:var(--vermelho-tx);font-weight:700">SEM DOCS OBRIG. (${docsObrigFaltantes(r).length})</span>`:''}</td><td>${esc(r.EMPRESA)}</td><td>${esc(r.TELEFONE)}</td>
       <td title="${esc(r.RESPONSAVEL)}">${esc(r.RESPONSAVEL)}</td>
       <td><input class="ap-input" id="apCpj_${r.ID}" placeholder="Nº pasta" value="${esc(r.PASTA_CPJ)}"></td>
       <td style="min-width:250px">
@@ -1378,7 +1392,7 @@ function renderizar(){
         <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')">Ficha</button>
       </td>
     </tr>`}).join('');
-  $('vazioAbertura').style.display = (pendentes.length+abertasVisiveis.length)?'none':'block';
+  $('vazioAbertura').style.display = linhasAbertura.length?'none':'block';
 
   /* --- histórico --- */
   const fh = {};
@@ -1877,6 +1891,7 @@ function trocarSubAba(qual){
 function limparFiltrosAp(){
   document.querySelectorAll('[data-fa]').forEach(el=>el.value='');
   apSoNaoAbertas = false;
+  apVerAguardando = false;
   renderizar();
 }
 function limparFiltrosConf(){
