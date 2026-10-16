@@ -127,6 +127,9 @@ td.acao{white-space:nowrap}
 .pill.verde{background:#fff;color:var(--verde-tx);border-color:var(--verde-bd)}
 .pill.amarelo{background:#fff;color:var(--amarelo-tx);border-color:var(--amarelo-bd)}
 .pill.vermelho{background:#fff;color:var(--vermelho-tx);border-color:var(--vermelho-bd)}
+.pill.vermelho-forte{background:#b71c1c;color:#fff;border-color:#7f0000}
+.st-vermelho-forte td{background:#c62828;color:#fff}
+.st-vermelho-forte:hover td{filter:brightness(1.06)}
 .pill.azul{background:#fff;color:var(--azul-tx);border-color:var(--azul-bd)}
 .pill.cinza{background:#fff;color:var(--cinza-tx);border-color:var(--cinza-bd)}
 .docs-chip{font-size:11.5px;background:#fff;border:1px solid var(--linha);border-radius:99px;padding:2px 8px;color:var(--cinza)}
@@ -242,7 +245,6 @@ td.acao{white-space:nowrap}
   </div>
   <div class="abas">
     <button class="aba" data-aba="lead" onclick="trocarAba('lead')">Lead <span class="cont" id="contLead">0</span></button>
-    <button class="aba" data-aba="agendamentos" onclick="trocarAba('agendamentos')">Agendamentos <span class="cont" id="contAgend">0</span></button>
     <button class="aba" data-aba="agenda" onclick="trocarAba('agenda')">Agenda</button>
     <button class="aba ativa" data-aba="atendimentos" onclick="trocarAba('atendimentos')">Atendimentos <span class="cont" id="contAtend">0</span></button>
     <button class="aba" data-aba="abertura" onclick="trocarAba('abertura')">Abertura de Pasta <span class="cont" id="contAbertura">0</span></button>
@@ -269,7 +271,7 @@ td.acao{white-space:nowrap}
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsSel()">Excluir selecionados</button>
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsTodosUI()" title="Apaga todos os leads da lista, inclusive os já enviados aos estagiários">Excluir TODOS</button>
     </span>
-    <span style="color:var(--cinza);font-size:12px" id="dicaEstagiario">Info <b>ESTAGIÁRIO</b> = envio automático de até <b>15 leads/dia por estagiário</b> na aba Atendimentos, de <b>segunda a sexta</b>, sem duplicidade (cada lead vai 1 única vez) · lead com <b>praça</b> só vai para estagiário da mesma praça</span>
+    <span style="color:var(--cinza);font-size:12px" id="dicaEstagiario">Info <b>ESTAGIÁRIO</b> = envio automático de até <b>15 leads/dia por responsável</b> (estagiários e advogados) na aba Atendimentos, de <b>segunda a sexta</b>, sem duplicidade (cada lead vai 1 única vez) · lead com <b>praça</b> só vai para estagiário da mesma praça</span>
     <datalist id="dlInfo"><option value="ROBO"><option value="ESTAGIÁRIO"></datalist>
     <div class="direita" style="align-items:flex-end">
       <span style="display:flex;flex-direction:column;gap:4px;align-items:stretch">
@@ -841,6 +843,7 @@ td.acao{white-space:nowrap}
             <option value=""></option>
             <option value="INDICAÇÃO">INDICAÇÃO</option>
             <option value="LEAD">LEAD</option>
+            <option value="ROBÔ DE ATENDIMENTO">ROBÔ DE ATENDIMENTO</option>
           </select>
         </div>
         <div class="campo-cond campo" id="cond_DOCSIT">
@@ -968,7 +971,6 @@ td.acao{white-space:nowrap}
         </span>
         <span class="abas-check">
           <label><input type="checkbox" id="novoLead"> Lead</label>
-          <label><input type="checkbox" id="novoAgend"> Agendamentos</label>
           <label><input type="checkbox" id="novoAgenda"> Agenda</label>
           <label><input type="checkbox" id="novoAtend" checked> Atendimentos</label>
           <label><input type="checkbox" id="novoAbert"> Abertura de Pasta</label>
@@ -1007,6 +1009,7 @@ const STATUS_CORES = {
   'TENTOU LIGAR E NÃO ENVIOU MENSAGEM':'amarelo',
   'ATENDIMENTO WHATS':'azul',
   'ATENDIMENTO VOZ':'azul',
+  'FECHOU (PENDENTE DE DOCS)':'vermelho-forte',
   'PRESCRITO':'vermelho',
   'TELEFONE ERRADO':'amarelo',
   'INDISPONÍVEL':'cinza',
@@ -1304,7 +1307,8 @@ function renderizar(){
     const atrasado = !String(r.STATUS||'').trim() && dataISO(r.DATA) && dataISO(r.DATA) < hojeISO;
     if(atrasado){cor='vermelho';extra.push('SEM STATUS — atrasado');}
     if(normaliza(r.STATUS)==='MARCADO OUTRO DIA' && r.RETORNO_DIA_HORARIO) extra.push('Remarcado: '+esc(r.RETORNO_DIA_HORARIO));
-    const obs = [r.OBSERVACOES, r.INDICACAO?('Indicação: '+r.INDICACAO):'', (normaliza(r.STATUS)==='PENDENTE DE DOCUMENTO'&&r.CONF_OBS)?('Pendência: '+r.CONF_OBS):'', (normaliza(r.STATUS)==='PENDENTE DE DOCUMENTO'&&r.DOC_FALTANDO)?('Faltando: '+r.DOC_FALTANDO):''].filter(Boolean).join(' · ');
+    const temPend = ['PENDENTE DE DOCUMENTO','FECHOU (PENDENTE DE DOCS)'].includes(normaliza(r.STATUS));
+    const obs = [r.OBSERVACOES, r.INDICACAO?('Indicação: '+r.INDICACAO):'', (temPend&&r.CONF_OBS)?('Pendência: '+r.CONF_OBS):'', (temPend&&r.DOC_FALTANDO)?('Faltando: '+r.DOC_FALTANDO):''].filter(Boolean).join(' · ');
     return `<tr class="st-${cor}" onclick="abrirFicha('${r.ID}')">
       <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${atendSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleAtendSel('${r.ID}',this.checked)"></td>
       <td>${esc(dataBR(r.DATA))}</td>
@@ -1637,7 +1641,7 @@ async function salvarFicha(){
         // FECHOU sem todos os obrigatórios: o servidor trocou para PENDENTE DE DOCUMENTO
         reg.STATUS = r.statusAjustado;
         $('f_STATUS').value = r.statusAjustado;
-        alert('O status FECHOU exige todos os documentos obrigatórios anexados.\n\nFaltando:\n- '+(r.docsFaltando||[]).join('\n- ')+'\n\nO atendimento foi salvo como PENDENTE DE DOCUMENTO. Anexe os documentos e mude o status para FECHOU novamente.');
+        alert('O status FECHOU exige todos os documentos obrigatórios anexados.\n\nFaltando:\n- '+(r.docsFaltando||[]).join('\n- ')+'\n\nO atendimento foi salvo como '+r.statusAjustado+'. Anexe os documentos e mude o status para FECHOU novamente.');
       }
       if(r.situacaoAjustada){
         // marcou DOCUMENTAÇÃO OK, mas há obrigatórios sem anexo: fica como FALTANDO
@@ -1947,10 +1951,10 @@ async function confirmarPendencia(id){
   if(!obs){toast('Descreva a pendência de documentos');return}
   if(!confirm('Confirmar a pendência? A pasta voltará para a aba Atendimentos com o status PENDENTE DE DOCUMENTO.'))return;
   loading(true,'Salvando…');
-  const resp = await postHist({ID:id,CONF_STATUS:'PENDÊNCIA DE DOCUMENTOS',CONF_OBS:obs,STATUS:'PENDENTE DE DOCUMENTO'},'Conferência: PENDÊNCIA DE DOCUMENTOS — devolvido para Atendimentos','CONFERÊNCIA');
+  const resp = await postHist({ID:id,CONF_STATUS:'PENDÊNCIA DE DOCUMENTOS',CONF_OBS:obs,STATUS:'FECHOU (PENDENTE DE DOCS)'},'Conferência: PENDÊNCIA DE DOCUMENTOS — devolvido para Atendimentos','CONFERÊNCIA');
   loading(false);
   if(resp.ok){
-    if(r){r.CONF_STATUS='PENDÊNCIA DE DOCUMENTOS';r.CONF_OBS=obs;r.STATUS='PENDENTE DE DOCUMENTO'}
+    if(r){r.CONF_STATUS='PENDÊNCIA DE DOCUMENTOS';r.CONF_OBS=obs;r.STATUS='FECHOU (PENDENTE DE DOCS)'}
     renderizar();
     toast('Pasta devolvida para Atendimentos como PENDENTE DE DOCUMENTO');
   }else toast('Erro: '+resp.erro);
@@ -2112,9 +2116,9 @@ async function apSalvar(id){
       const lista = 'Obrigatórios faltando: '+faltam.join(', ');
       alert('Esta pasta NÃO pode ser aberta: faltam documentos obrigatórios anexados na ficha.\n\n- '+faltam.join('\n- ')+'\n\nEla ficará como FALTANDO DOCUMENTAÇÃO até anexar tudo.');
       loading(true,'Salvando…');
-      const respF = await postAbertura({ID:id,DOC_SITUACAO:'FALTANDO DOCUMENTAÇÃO',DOC_FALTANDO:lista,PASTA_CPJ:numeroCpj,STATUS:'PENDENTE DE DOCUMENTO'},'FALTANDO DOCUMENTAÇÃO (automático: obrigatórios sem anexo) — devolvido para Atendimentos');
+      const respF = await postAbertura({ID:id,DOC_SITUACAO:'FALTANDO DOCUMENTAÇÃO',DOC_FALTANDO:lista,PASTA_CPJ:numeroCpj,STATUS:'FECHOU (PENDENTE DE DOCS)'},'FALTANDO DOCUMENTAÇÃO (automático: obrigatórios sem anexo) — devolvido para Atendimentos');
       loading(false);
-      if(respF.ok){r.DOC_SITUACAO='FALTANDO DOCUMENTAÇÃO';r.DOC_FALTANDO=lista;r.PASTA_CPJ=numeroCpj;r.STATUS='PENDENTE DE DOCUMENTO';renderizar()}
+      if(respF.ok){r.DOC_SITUACAO='FALTANDO DOCUMENTAÇÃO';r.DOC_FALTANDO=lista;r.PASTA_CPJ=numeroCpj;r.STATUS='FECHOU (PENDENTE DE DOCS)';renderizar()}
       return;
     }
   }
@@ -2126,7 +2130,7 @@ async function apSalvar(id){
     PASTA_CPJ: numeroCpj
   }; // a data de abertura é registrada automaticamente pelo servidor
   // FALTANDO DOCUMENTAÇÃO devolve o atendimento com o status PENDENTE DE DOCUMENTO
-  if(faltandoDoc) reg.STATUS = 'PENDENTE DE DOCUMENTO';
+  if(faltandoDoc) reg.STATUS = 'FECHOU (PENDENTE DE DOCS)'; // devolvido destacado em vermelho forte
   // o nº da pasta no CPJ vai automaticamente para o campo PASTA da ficha
   if(numeroCpj) reg.PASTA = numeroCpj;
   loading(true,'Salvando…');
@@ -2140,7 +2144,7 @@ async function apSalvar(id){
     if(normaliza(reg.DOC_SITUACAO)==='DOCUMENTACAO OK' && reg.PASTA_CPJ){
       toast('Pasta '+reg.PASTA_CPJ+' aberta e movida para Pastas abertas');
     }else if(faltandoDoc){
-      toast('Devolvido para Atendimentos como PENDENTE DE DOCUMENTO');
+      toast('Devolvido para Atendimentos como FECHOU (PENDENTE DE DOCS)');
     }else{
       toast('Abertura de pasta salva');
     }
@@ -3426,7 +3430,7 @@ function aplicarLogin(semCarregar){
   $('loginSenha').value='';
   aplicarPermissoesUI();
   $('agAdvSel').innerHTML='';
-  const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+  const primeira = ['lead','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
   trocarAba(primeira);
   if(!semCarregar)carregar();
 }
@@ -3443,7 +3447,7 @@ async function sessaoCompleta(){
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
       if(!ativa || !podeAba(ativa.dataset.aba)){
-        const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+        const primeira = ['lead','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
         trocarAba(primeira);
       }
       aplicarDados(r);
@@ -3478,7 +3482,7 @@ async function revalidarSessao(){
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
       if(!ativa || !podeAba(ativa.dataset.aba)){
-        const primeira = ['lead','agendamentos','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+        const primeira = ['lead','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
         trocarAba(primeira);
       }
       renderizar(); renderAgendamentos(); renderLeads();
@@ -3532,7 +3536,6 @@ function renderUsuarios(){
       </span>
       <span class="abas-check">
         <label><input type="checkbox" id="uLead_${i}" ${abas.includes('lead')?'checked':''}> Lead</label>
-        <label><input type="checkbox" id="uAgend_${i}" ${abas.includes('agendamentos')?'checked':''}> Agendamentos</label>
         <label><input type="checkbox" id="uAgenda_${i}" ${abas.includes('agenda')?'checked':''}> Agenda</label>
         <label><input type="checkbox" id="uAtend_${i}" ${abas.includes('atendimentos')?'checked':''}> Atendimentos</label>
         <label><input type="checkbox" id="uAbert_${i}" ${abas.includes('abertura')?'checked':''}> Abertura de Pasta</label>
@@ -3548,14 +3551,15 @@ function renderUsuarios(){
 
 function abasMarcadas(atendId,abertId,inicId,ajuizId,agendId,agendaId,confId,leadId){
   const a=[];
-  if($(leadId).checked)a.push('lead');
-  if($(agendId).checked)a.push('agendamentos');
-  if($(agendaId).checked)a.push('agenda');
-  if($(atendId).checked)a.push('atendimentos');
-  if($(abertId).checked)a.push('abertura');
-  if($(confId).checked)a.push('conferencia');
-  if($(inicId).checked)a.push('iniciais');
-  if($(ajuizId).checked)a.push('ajuizamento');
+  const mc = id=>{const el=$(id);return !!(el&&el.checked)};
+  if(mc(leadId))a.push('lead');
+  if(mc(agendId))a.push('agendamentos');
+  if(mc(agendaId))a.push('agenda');
+  if(mc(atendId))a.push('atendimentos');
+  if(mc(abertId))a.push('abertura');
+  if(mc(confId))a.push('conferencia');
+  if(mc(inicId))a.push('iniciais');
+  if(mc(ajuizId))a.push('ajuizamento');
   return a.join(',');
 }
 
