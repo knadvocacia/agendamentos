@@ -245,7 +245,6 @@ td.acao{white-space:nowrap}
   </div>
   <div class="abas">
     <button class="aba" data-aba="lead" onclick="trocarAba('lead')">Lead <span class="cont" id="contLead">0</span></button>
-    <button class="aba" data-aba="agenda" onclick="trocarAba('agenda')">Agenda</button>
     <button class="aba ativa" data-aba="atendimentos" onclick="trocarAba('atendimentos')">Atendimentos <span class="cont" id="contAtend">0</span></button>
     <button class="aba" data-aba="abertura" onclick="trocarAba('abertura')">Abertura de Pasta <span class="cont" id="contAbertura">0</span></button>
     <button class="aba" data-aba="conferencia" onclick="trocarAba('conferencia')">Conferência <span class="cont" id="contConf">0</span></button>
@@ -971,7 +970,6 @@ td.acao{white-space:nowrap}
         </span>
         <span class="abas-check">
           <label><input type="checkbox" id="novoLead"> Lead</label>
-          <label><input type="checkbox" id="novoAgenda"> Agenda</label>
           <label><input type="checkbox" id="novoAtend" checked> Atendimentos</label>
           <label><input type="checkbox" id="novoAbert"> Abertura de Pasta</label>
           <label><input type="checkbox" id="novoConf"> Conferência</label>
@@ -1122,6 +1120,31 @@ async function sincronizar(silencioso){
 }
 setInterval(()=>sincronizar(true), 180000); // sincronização automática a cada 3 minutos
 
+function salvarCacheLocal(){
+  try{
+    localStorage.setItem('cacheDadosADV', JSON.stringify({
+      t: Date.now(), atendimentos: registros, agendamentos: agRegistros,
+      leads: leadRegistros, estagiarios: estagiariosCache, responsaveis: responsaveisCache
+    }));
+  }catch(e){/* cache cheio/indisponível: segue sem */}
+}
+
+function usarCacheLocal(){
+  // mostra na hora os últimos dados carregados neste computador,
+  // enquanto a versão atual chega da nuvem em segundo plano
+  try{
+    const c = JSON.parse(localStorage.getItem('cacheDadosADV')||'null');
+    if(!c || !c.atendimentos) return false;
+    registros = c.atendimentos; agRegistros = c.agendamentos||[]; leadRegistros = c.leads||[];
+    if(c.estagiarios) aplicarEstagiarios(c.estagiarios);
+    if(c.responsaveis) aplicarResponsaveis(c.responsaveis);
+    renderizar(); renderAgendamentos(); renderLeads();
+    const el=$('ultimaSync');
+    if(el) el.textContent = 'Dados de '+new Date(c.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · atualizando…';
+    return true;
+  }catch(e){return false}
+}
+
 function aplicarDados(r){
   registros = r.atendimentos||[];
   agRegistros = r.agendamentos||[];
@@ -1133,6 +1156,7 @@ function aplicarDados(r){
   else{carregarEstagiarios()} // implantação antiga: busca em chamada separada
   if(r.responsaveis)aplicarResponsaveis(r.responsaveis);
   marcarSync();
+  salvarCacheLocal();
 }
 
 async function carregar(){
@@ -1479,7 +1503,9 @@ function renderizar(){
     const dISO = dataISO(r.DATA_SAIDA);
     return (!mesIni || dataISO(r.DATA_ABERTURA).slice(0,7)===mesIni) &&
       (!iniData || dISO===iniData) &&
-      (!iniSt || statusIni(r)===iniSt) &&
+      // sem filtro de status, as FEITAS não aparecem aqui (já seguiram para o Ajuizamento);
+      // para revê-las, basta escolher FEITO no filtro de status (ou clicar no resumo FEITOS)
+      (iniSt ? statusIni(r)===iniSt : statusIni(r)!=='FEITO') &&
       Object.entries(fi).every(([c,v])=>normaliza(r[c]).includes(v));
   });
   iniVisiveis.sort((a,b)=>chaveData(a.DATA_ABERTURA).localeCompare(chaveData(b.DATA_ABERTURA)));
@@ -1508,7 +1534,7 @@ function renderizar(){
   const iniPend = iniVisiveis.filter(r=>statusIni(r)==='PENDENTE').length;
   $('badgeIniFazer').textContent = 'INICIAIS PARA FAZER: '+iniPend;
   $('badgeIniPend').textContent = 'PENDENTES: '+iniPend;
-  $('badgeIniFeitos').textContent = 'FEITOS: '+iniVisiveis.filter(r=>statusIni(r)==='FEITO').length;
+  $('badgeIniFeitos').textContent = 'FEITOS: '+pastasAbertas.filter(r=>statusIni(r)==='FEITO').length;
   $('vazioIniciais').style.display = iniVisiveis.length?'none':'block';
   $('contIniciais').textContent = nNaoElaboradas; // iniciais pendentes de fazer
 
@@ -1718,34 +1744,16 @@ function docParaBlobUrl(r){
   return URL.createObjectURL(new Blob([bytes],{type:r.mime||'application/octet-stream'}));
 }
 
-async function verDocArquivo(driveId){
-  // abre a janela no clique (evita bloqueio de pop-up) e carrega o arquivo pelo sistema,
-  // sem depender de permissão do Google Drive
-  const jan = window.open('','_blank');
-  if(jan){try{jan.document.write('<title>Documento</title><p style="font-family:sans-serif">Carregando o documento…</p>')}catch(e){}}
-  loading(true,'Abrindo documento…');
-  const r = await apiPost({action:'baixarDoc',driveId});
-  loading(false);
-  if(!r.ok){if(jan)jan.close();toast('Erro: '+r.erro);return}
-  const url = docParaBlobUrl(r);
-  if(jan){jan.location = url}
-  else{window.open(url,'_blank')}
+function verDocArquivo(driveId){
+  // abre direto do Google Drive: instantâneo (a pasta dos documentos é compartilhada
+  // por link, então não pede permissão). O botão ⬇ continua baixando pelo sistema.
+  window.open('https://drive.google.com/file/d/'+driveId+'/view','_blank');
 }
 
-async function abrirDocsCol(colOuLista){
+function abrirDocsCol(colOuLista){
   let lista=[]; try{lista=JSON.parse(fichaAtual[colOuLista]||'[]')}catch(e){}
   if(!lista.length)return;
-  // abre as janelas no gesto do clique e preenche uma a uma pelo sistema
-  const janelas = lista.map(()=>window.open('','_blank'));
-  loading(true,'Abrindo '+lista.length+' documento(s)…');
-  for(let i=0;i<lista.length;i++){
-    try{
-      const r = await apiPost({action:'baixarDoc',driveId:lista[i].id});
-      if(r.ok && janelas[i]) janelas[i].location = docParaBlobUrl(r);
-      else if(janelas[i]) janelas[i].close();
-    }catch(e){if(janelas[i])janelas[i].close()}
-  }
-  loading(false);
+  lista.forEach(d=>window.open('https://drive.google.com/file/d/'+d.id+'/view','_blank'));
 }
 
 async function baixarDocArquivo(driveId){
@@ -3430,14 +3438,15 @@ function aplicarLogin(semCarregar){
   $('loginSenha').value='';
   aplicarPermissoesUI();
   $('agAdvSel').innerHTML='';
-  const primeira = ['lead','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+  const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
   trocarAba(primeira);
   if(!semCarregar)carregar();
 }
 
-async function sessaoCompleta(){
-  // página recarregada com sessão guardada: UMA viagem revalida as permissões e traz os dados
-  loading(true,'Carregando dados…');
+async function sessaoCompleta(silencioso){
+  // página recarregada com sessão guardada: UMA viagem revalida as permissões e traz os dados;
+  // quando o cache local já está na tela, isso acontece em segundo plano, sem tela de espera
+  if(!silencioso) loading(true,'Carregando dados…');
   try{
     const r = await apiPost({action:'loginCompleto',senha:usuario.senha});
     loading(false);
@@ -3447,7 +3456,7 @@ async function sessaoCompleta(){
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
       if(!ativa || !podeAba(ativa.dataset.aba)){
-        const primeira = ['lead','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+        const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
         trocarAba(primeira);
       }
       aplicarDados(r);
@@ -3482,7 +3491,7 @@ async function revalidarSessao(){
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
       if(!ativa || !podeAba(ativa.dataset.aba)){
-        const primeira = ['lead','agenda','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+        const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
         trocarAba(primeira);
       }
       renderizar(); renderAgendamentos(); renderLeads();
@@ -3492,6 +3501,7 @@ async function revalidarSessao(){
 
 function sair(){
   document.body.classList.remove('modo-estag');
+  try{localStorage.removeItem('cacheDadosADV')}catch(e){}
   sessionStorage.removeItem('usuarioADV');
   usuario=null;
   registros=[];
@@ -3536,7 +3546,6 @@ function renderUsuarios(){
       </span>
       <span class="abas-check">
         <label><input type="checkbox" id="uLead_${i}" ${abas.includes('lead')?'checked':''}> Lead</label>
-        <label><input type="checkbox" id="uAgenda_${i}" ${abas.includes('agenda')?'checked':''}> Agenda</label>
         <label><input type="checkbox" id="uAtend_${i}" ${abas.includes('atendimentos')?'checked':''}> Atendimentos</label>
         <label><input type="checkbox" id="uAbert_${i}" ${abas.includes('abertura')?'checked':''}> Abertura de Pasta</label>
         <label><input type="checkbox" id="uConf_${i}" ${abas.includes('conferencia')?'checked':''}> Conferência</label>
@@ -3737,8 +3746,9 @@ const renderLeadsDeb = debounce(()=>renderLeads(),180);
   }
   if(usuario){
     usuario.abas = usuario.abas||[];
-    aplicarLogin(true);   // mostra já com as permissões guardadas
-    sessaoCompleta();     // uma viagem só: permissões atuais + todos os dados
+    aplicarLogin(true);              // mostra já com as permissões guardadas
+    const temCache = usarCacheLocal(); // tela preenchida na hora com os últimos dados
+    sessaoCompleta(temCache);        // e a versão atual chega em segundo plano
   }
   else{$('telaLogin').style.display='flex';setTimeout(()=>$('loginSenha').focus(),100)}
 })();
