@@ -1456,6 +1456,9 @@ function renderizar(){
   const confVisiveis = pastasAbertas.filter(r=>{
     if(stConf==='__SEM__'){ if(confSt(r)) return false; }
     else if(stConf && confSt(r)!==normaliza(stConf)) return false;
+    // sem filtro de status, as já conferidas com DOCUMENTAÇÃO OK saem da lista
+    // (seguiram para Iniciais); para revê-las, escolha DOCUMENTAÇÃO OK no filtro
+    else if(!stConf && confSt(r)==='DOCUMENTACAO OK') return false;
     return Object.entries(fc).every(([c,v])=>normaliza(r[c]).includes(v));
   });
   confVisiveis.sort((a,b)=>chaveData(a.DATA_ABERTURA).localeCompare(chaveData(b.DATA_ABERTURA)));
