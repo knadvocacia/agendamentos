@@ -591,7 +591,7 @@ td.acao{white-space:nowrap}
 <section class="painel" id="painel-abertura">
   <div class="barra">
     <span class="fechados-badge" id="badgeAbertas" onclick="trocarSubAba('historico')" title="Clique para ver as pastas abertas">PASTAS ABERTAS: 0</span>
-    <span class="fechados-badge badge-amarelo" id="badgeNaoAbertas" onclick="filtrarAbertura('')" title="Clique para ver SÓ as pastas não abertas; clique de novo para voltar a mostrar também as já abertas">PASTAS NÃO ABERTAS: 0</span>
+    <span class="fechados-badge badge-amarelo" id="badgeNaoAbertas" onclick="filtrarAbertura('')" title="Clique para ver as pastas não abertas">PASTAS NÃO ABERTAS: 0</span>
     <span class="fechados-badge badge-vermelho" id="badgeFaltDoc" onclick="verAguardandoDocs()" title="Clientes FECHADOS ainda SEM os documentos obrigatórios anexados — não entram na Abertura e seguem com o estagiário em Atendimentos. Clique para ver quem está aguardando; clique de novo para voltar.">AGUARDANDO DOCS (COM ESTAGIÁRIO): 0</span>
     <div class="sub-abas">
       <button class="sub-aba ativa" id="subPendentes" onclick="trocarSubAba('pendentes')">Em aberto</button>
@@ -1222,13 +1222,7 @@ function filtrarAbertura(docSit){
   trocarSubAba('pendentes');
   apVerAguardando = false;
   const sel = document.querySelector('[data-fa="DOC_SITUACAO"]');
-  if(docSit===''){
-    apSoNaoAbertas = !apSoNaoAbertas; // clicar de novo volta a mostrar tudo
-    if(sel) sel.value='';
-  }else{
-    apSoNaoAbertas = false;
-    if(sel) sel.value = docSit;
-  }
+  if(sel) sel.value = docSit;
   renderizar();
 }
 function verAguardandoDocs(){
@@ -1395,8 +1389,9 @@ function renderizar(){
   $('badgeNaoAbertas').textContent = 'PASTAS NÃO ABERTAS: '+pendentes.length;
   $('badgeFaltDoc').textContent = (apVerAguardando?'\u25c0 VOLTAR \u00b7 ':'')+'AGUARDANDO DOCS (COM ESTAGIÁRIO): '+aguardandoDocs.length;
 
-  const abertasVisiveis = (apSoNaoAbertas||apVerAguardando) ? [] : abertasNaLista;
-  const linhasAbertura = apVerAguardando ? aguardandoDocs : pendentes.concat(abertasVisiveis);
+  // pasta marcada DOCUMENTAÇÃO OK (com nº) sai do Em aberto: segue para Pastas abertas e Conferência;
+  // para corrigir um engano, use a sub-aba "Pastas abertas" → Reabrir
+  const linhasAbertura = apVerAguardando ? aguardandoDocs : pendentes;
   $('corpoAbertura').innerHTML = linhasAbertura.map(r=>{
     const ok = normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK';
     const faltando = normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO';
