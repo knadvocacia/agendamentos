@@ -961,6 +961,7 @@ td.acao{white-space:nowrap}
         <input type="text" id="novoNome" placeholder="Nome do usuário">
         <input type="text" id="novaSenha" placeholder="Senha" style="width:120px">
         <select id="novoTipo" title="Tipo do usuário"><option>ADVOGADO</option><option>ESTAGIÁRIO</option><option>ATENDENTE</option><option>ABERTURA DE PASTA</option></select>
+        <label style="font-size:11.5px;white-space:nowrap" title="Desmarcado: o usuário NÃO entra na distribuição automática de leads (ex.: responsáveis só por conferência/ajuizamento)"><input type="checkbox" id="novoRecebe" checked> Recebe leads</label>
         <span class="abas-check" id="novaPracaBox" title="Praça(s) de Atendimento — obrigatório marcar ao menos uma; pode marcar mais de uma">
           <b style="font-size:11px">Praça:</b>
           <label><input type="checkbox" class="novaPraca" value="RJ"> RJ</label>
@@ -1645,6 +1646,11 @@ async function salvarFicha(){
     const sit = $('f_DOC_SITUACAO').value;
     if(!sit){toast('Selecione a situação da documentação: DOCUMENTAÇÃO OK ou FALTANDO DOCUMENTAÇÃO');return}
     reg.DOC_SITUACAO = sit;
+  }
+  if(normaliza(reg.STATUS)==='SEM INTERESSE' && !reg.OBSERVACOES){
+    toast('O status SEM INTERESSE exige o MOTIVO nas Observações');
+    $('f_OBSERVACOES').focus();
+    return;
   }
   if(souEstagiario() && usuario) reg.RESPONSAVEL = usuario.nome; // atendimento do estagiário fica sempre com ele
   if(!fichaAtual){
@@ -3538,6 +3544,7 @@ function renderUsuarios(){
         <option ${normaliza(u.tipo||'')==='ATENDENTE'?'selected':''}>ATENDENTE</option>
         <option ${normaliza(u.tipo||'')==='ABERTURA DE PASTA'?'selected':''}>ABERTURA DE PASTA</option>
       </select>
+      <label style="font-size:11.5px;white-space:nowrap" title="Desmarcado: não entra na distribuição automática de leads"><input type="checkbox" id="uRecebe_${i}" ${u.recebeLeads===false?'':'checked'}> Recebe leads</label>
       <span class="abas-check" title="Praça(s) de Atendimento — pode marcar mais de uma; leads com praça só são distribuídos para quem tem a mesma praça">
         <b style="font-size:11px">Praça:</b>
         ${PRACAS.map(p=>`<label><input type="checkbox" class="uPraca_${i}" value="${p}" ${pracasDe(u.praca).includes(p)?'checked':''}> ${p}</label>`).join('')}
@@ -3551,6 +3558,7 @@ function renderUsuarios(){
         <label><input type="checkbox" id="uAjuiz_${i}" ${abas.includes('ajuizamento')?'checked':''}> Ajuizamento</label>
       </span>
       <button class="btn btn-mini btn-borda" onclick="salvarUsuario(${i})">Salvar</button>
+      <button class="btn btn-mini btn-borda" onclick="redistribuirDeUsuario(${i})" title="Envia os atendimentos EM ANDAMENTO deste usuário para quem recebe leads (status zerado); os finalizados ficam com ele">Redistribuir leads</button>
       <button class="btn btn-mini btn-perigo" onclick="excluirUsuario(${i})">Excluir</button>
     </div>`;
   }).join('') || '<div style="font-size:12.5px;color:var(--cinza);margin-bottom:8px">Nenhum usuário cadastrado ainda.</div>';
@@ -3578,7 +3586,7 @@ async function adicionarUsuario(){
   if(!praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
   if(!abas){toast('Marque ao menos uma aba');return}
   loading(true,'Salvando…');
-  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('novoTipo').value});
+  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('novoTipo').value,recebeLeads:$('novoRecebe').checked?'SIM':'NAO'});
   loading(false);
   if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();$('novoNome').value='';$('novaSenha').value='';document.querySelectorAll('.novaPraca').forEach(c=>c.checked=false);toast('Usuário adicionado')}
   else toast(r.erro);
@@ -3592,7 +3600,7 @@ async function salvarUsuario(i){
   if(!praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
   if(!abas){toast('Marque ao menos uma aba');return}
   loading(true,'Salvando…');
-  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('uTipo_'+i).value,nomeAntigo:listaUsuariosCache[i].nome});
+  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('uTipo_'+i).value,recebeLeads:$('uRecebe_'+i).checked?'SIM':'NAO',nomeAntigo:listaUsuariosCache[i].nome});
   loading(false);
   if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();toast('Usuário atualizado')}
   else toast(r.erro);
@@ -3611,6 +3619,20 @@ async function alterarSenhaMaster(){
     $('msAtual').value='';$('msNova').value='';
     toast('Senha do master alterada com sucesso');
   }else toast(r.erro);
+}
+
+async function redistribuirDeUsuario(i){
+  const nome = listaUsuariosCache[i].nome;
+  if(!confirm('Redistribuir os atendimentos EM ANDAMENTO de '+nome+' entre quem recebe leads?\n\nO status desses atendimentos é zerado para o novo responsável trabalhar; os finalizados (FECHOU, SEM INTERESSE, PRESCRITO) permanecem com '+nome+'.\n\nDica: desmarque "Recebe leads" e salve ANTES, para ele(a) não receber de volta.'))return;
+  loading(true,'Redistribuindo…');
+  const r = await apiPost({action:'redistribuirDeUsuario',senhaMaster:usuario.senha,nome});
+  loading(false);
+  if(r.ok){
+    let msg = (r.redistribuidos||0)+' atendimento(s) redistribuídos entre '+(r.entre||0)+' responsável(is)';
+    if(r.semDestino) msg += ' · '+r.semDestino+' sem destino (Responsável em branco)';
+    toast(msg);
+    carregar();
+  }else toast(String(r.erro||'').includes('Ação inválida')?'Atualize o Code.gs (Nova versão) para redistribuir':'Erro: '+r.erro);
 }
 
 async function excluirUsuario(i){
