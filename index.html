@@ -1306,7 +1306,7 @@ function renderizar(){
   const mes = $('filtroMes').value; // formato yyyy-mm
   const dDe = $('fDataDe').value, dAte = $('fDataAte').value;
   // estagiário enxerga apenas os nomes distribuídos para ele (fila da aba Lead)
-  const baseAtend = souEstagiario()
+  const baseAtend = veSoProprios()
     ? registros.filter(r=>normaliza(r.RESPONSAVEL)===normaliza(usuario.nome))
     : registros;
   const visiveis = baseAtend.filter(r=>{
@@ -2338,6 +2338,12 @@ async function confirmarImportacao(){
 /* ===================== leads ===================== */
 let leadRegistros = [];
 function souEstagiario(){return usuario && !usuario.master && normaliza(usuario.tipo||'')==='ESTAGIARIO'}
+function veSoProprios(){
+  // estagiários e advogados (não-master) veem apenas os atendimentos direcionados a eles
+  if(!usuario || usuario.master) return false;
+  const t = normaliza(usuario.tipo||'');
+  return t==='ESTAGIARIO' || t==='ADVOGADO';
+}
 let leadSel = new Set();
 let leadEditId = null;
 let estagiariosCache = [];
@@ -3583,7 +3589,8 @@ async function adicionarUsuario(){
   const praca=[...document.querySelectorAll('.novaPraca:checked')].map(c=>c.value).join(',');
   const abas=abasMarcadas('novoAtend','novoAbert','novoInic','novoAjuiz','novoAgend','novoAgenda','novoConf','novoLead');
   if(!nome||!senha){toast('Informe nome e senha');return}
-  if(!praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
+  // praça só é exigida de quem recebe leads
+  if($('novoRecebe').checked && !praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
   if(!abas){toast('Marque ao menos uma aba');return}
   loading(true,'Salvando…');
   const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('novoTipo').value,recebeLeads:$('novoRecebe').checked?'SIM':'NAO'});
@@ -3597,7 +3604,8 @@ async function salvarUsuario(i){
   const praca=[...document.querySelectorAll('.uPraca_'+i+':checked')].map(c=>c.value).join(',');
   const abas=abasMarcadas('uAtend_'+i,'uAbert_'+i,'uInic_'+i,'uAjuiz_'+i,'uAgend_'+i,'uAgenda_'+i,'uConf_'+i,'uLead_'+i);
   if(!nome||!senha){toast('Informe nome e senha');return}
-  if(!praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
+  // praça só é exigida de quem recebe leads
+  if($('uRecebe_'+i).checked && !praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
   if(!abas){toast('Marque ao menos uma aba');return}
   loading(true,'Salvando…');
   const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('uTipo_'+i).value,recebeLeads:$('uRecebe_'+i).checked?'SIM':'NAO',nomeAntigo:listaUsuariosCache[i].nome});
