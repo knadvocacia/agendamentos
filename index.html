@@ -526,6 +526,7 @@ td.acao{white-space:nowrap}
     <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirAtendSel()">Excluir selecionados</button>
     <span class="fechados-badge" id="badgeFechados" onclick="filtrarAtendPorBadge('FECHOU','')" title="Clique para ver a lista dos fechados">CLIENTES FECHADOS: 0</span>
     <span class="fechados-badge badge-amarelo" id="badgeFechFaltDoc" onclick="filtrarAtendPorBadge('FECHOU','FALTANDO DOCUMENTAÇÃO')" title="Clique para ver a lista">FECHADOS FALTANDO DOCS: 0</span>
+    <span class="fechados-badge badge-azul" id="badgeNovos" style="display:none;background:var(--azul-bg);color:var(--azul-tx);border-color:var(--azul-bd)" title="Atendimentos agendados para você que ainda não foram abertos">&#128276; NOVOS AGENDADOS: 0</span>
     <span class="fechados-badge badge-amarelo" id="badgePendAssin" onclick="filtrarAtendPorBadge('PENDENTE ASSINATURA','')" title="Clique para ver a lista">PEND. ASSINATURA: 0</span>
     <span class="periodo-box">
       <label for="filtroMes">Período:</label>
@@ -1146,6 +1147,16 @@ function usarCacheLocal(){
   }catch(e){return false}
 }
 
+let _novosAnterior = null;
+function avisarNovos(){
+  if(!usuario) return;
+  const n = registros.filter(x=>String(x.NOVO||'')==='SIM' && normaliza(x.RESPONSAVEL)===normaliza(usuario.nome)).length;
+  if(_novosAnterior!==null && n>_novosAnterior){
+    toast('\u{1F514} Você tem '+n+' atendimento(s) NOVO(S) agendado(s) — veja a aba Atendimentos');
+  }
+  _novosAnterior = n;
+}
+
 function aplicarDados(r){
   registros = r.atendimentos||[];
   agRegistros = r.agendamentos||[];
@@ -1158,6 +1169,7 @@ function aplicarDados(r){
   if(r.responsaveis)aplicarResponsaveis(r.responsaveis);
   marcarSync();
   salvarCacheLocal();
+  avisarNovos();
 }
 
 async function carregar(){
@@ -1333,7 +1345,7 @@ function renderizar(){
       <td>${esc(dataBR(r.DATA))}</td>
       <td title="${esc(r.DOC_SITUACAO)||''}">${normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK'?'<span class="pill verde">DOC. OK</span>':(normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO'?'<span class="pill amarelo">FALTANDO DOC.</span>':'')}</td>
       <td title="${esc(r.STATUS)||''}"><span class="pill ${cor}">${esc(r.STATUS)||'—'}</span>${extra.length?'<div style="font-size:11px;margin-top:3px">'+extra.join(' · ')+'</div>':''}</td>
-      <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b>${String(r.PRIORIDADE||'')==='SIM'?' <span class="docs-chip" title="PRIORIDADE de abertura de pasta" style="background:var(--vermelho-bg);color:var(--vermelho-tx);font-weight:700">&#9873; PRIOR.</span>':''}${normaliza(r.ORIGEM)==='INDICACAO'?' <span class="docs-chip" title="Atendimento criado por indicação" style="background:var(--amarelo-bg);color:var(--amarelo-tx)">IND</span>':''}</td><td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
+      <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b>${String(r.NOVO||'')==='SIM'?' <span class="docs-chip" title="Novo atendimento agendado para o responsável — some quando ele abrir a ficha" style="background:var(--azul-bg);color:var(--azul-tx);font-weight:700">&#128276; NOVO</span>':''}${String(r.PRIORIDADE||'')==='SIM'?' <span class="docs-chip" title="PRIORIDADE de abertura de pasta" style="background:var(--vermelho-bg);color:var(--vermelho-tx);font-weight:700">&#9873; PRIOR.</span>':''}${normaliza(r.ORIGEM)==='INDICACAO'?' <span class="docs-chip" title="Atendimento criado por indicação" style="background:var(--amarelo-bg);color:var(--amarelo-tx)">IND</span>':''}</td><td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
       <td title="${esc(r.EMPRESA)}">${esc(r.EMPRESA)}</td><td title="${esc(r.RESPONSAVEL)}">${esc(r.RESPONSAVEL)}</td><td title="${esc(r.PASTA)}">${esc(r.PASTA)}</td>
       <td title="${esc(r.ADV_ATENDIMENTO)}">${esc(r.ADV_ATENDIMENTO)}</td><td>${esc(dataBR(r.DATA_SAIDA))}</td>
       <td><span class="docs-chip">${totalDocs(r)} arq.</span></td>
@@ -1353,6 +1365,9 @@ function renderizar(){
   $('badgeFechados').textContent = 'CLIENTES FECHADOS: '+visiveis.filter(r=>normaliza(r.STATUS)==='FECHOU').length;
   $('badgeFechFaltDoc').textContent = 'FECHADOS FALTANDO DOCS: '+visiveis.filter(r=>normaliza(r.STATUS)==='FECHOU' && normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO').length;
   $('badgePendAssin').textContent = 'PEND. ASSINATURA: '+visiveis.filter(r=>normaliza(r.STATUS)==='PENDENTE ASSINATURA').length;
+  const meusNovos = baseAtend.filter(r=>String(r.NOVO||'')==='SIM' && usuario && normaliza(r.RESPONSAVEL)===normaliza(usuario.nome)).length;
+  const bN=$('badgeNovos');
+  if(bN){bN.style.display = meusNovos?'inline-flex':'none'; bN.innerHTML = '&#128276; NOVOS AGENDADOS: '+meusNovos;}
 
   /* --- aba 2 --- */
   const fechados = registros.filter(r=>normaliza(r.STATUS)==='FECHOU');
@@ -1613,6 +1628,13 @@ function abrirFicha(id){
   condicionais();
   renderDocs();
   $('mFicha').classList.add('aberto');
+  // o responsável abriu o novo atendimento: a sinalização é retirada
+  if(fichaAtual && String(fichaAtual.NOVO||'')==='SIM' && usuario && normaliza(fichaAtual.RESPONSAVEL)===normaliza(usuario.nome)){
+    fichaAtual.NOVO='';
+    if(_novosAnterior!==null && _novosAnterior>0)_novosAnterior--;
+    renderizar();
+    apiPost({action:'salvar',registro:{ID:fichaAtual.ID,NOVO:''}}); // em segundo plano
+  }
 }
 function fecharModal(id){$(id).classList.remove('aberto')}
 
@@ -1668,6 +1690,8 @@ async function salvarFicha(){
     const rOk = respValido(reg.RESPONSAVEL);
     if(!rOk){toast('Responsável não encontrado: escolha um ADVOGADO ou ESTAGIÁRIO da lista (cadastrados em Usuários)');$('f_RESPONSAVEL').focus();return}
     reg.RESPONSAVEL = rOk; // grava com a grafia exata do cadastro
+    // agendado por outra pessoa (atendente/master): sinaliza o novo atendimento para o responsável
+    if(usuario && normaliza(rOk)!==normaliza(usuario.nome)) reg.NOVO = 'SIM';
   }
   if(!reg.DATA) reg.DATA = dataBR(new Date().toISOString().slice(0,10));
   loading(true,'Salvando…');
