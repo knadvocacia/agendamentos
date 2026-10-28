@@ -817,7 +817,7 @@ td.acao{white-space:nowrap}
         <div class="campo c2"><label>Nome</label><input id="f_NOME"></div>
         <div class="campo"><label>Telefone</label><input id="f_TELEFONE"></div>
         <div class="campo c2"><label>Empresa</label><input id="f_EMPRESA"></div>
-        <div class="campo"><label>Responsável</label><input id="f_RESPONSAVEL"></div>
+        <div class="campo"><label>Responsável</label><input id="f_RESPONSAVEL" list="dlResponsaveis" placeholder="Advogado ou estagiário" title="Escolha o advogado ou estagiário responsável pelo caso — o atendimento aparece na lista dele"></div>
         <div class="campo"><label>Pasta</label><input id="f_PASTA"></div>
         <div class="campo"><label>Data saída</label><input type="date" id="f_DATA_SAIDA"></div>
         <div class="campo c2"><label>Adv. atendimento</label><input id="f_ADV_ATENDIMENTO" placeholder="Automático pela agenda (ou digite)"></div>
@@ -1598,8 +1598,9 @@ function abrirFicha(id){
     $('f_ORIGEM').value = 'INDICAÇÃO';
     // atendimento novo: já entra com a data de hoje (lista do dia)
     $('f_DATA').value = new Date().toISOString().slice(0,10);
-    // e com o responsável preenchido com quem está lançando
-    if(usuario && !$('f_RESPONSAVEL').value) $('f_RESPONSAVEL').value = usuario.nome;
+    // responsável: pré-preenche com quem está lançando apenas se ele próprio for
+    // advogado/estagiário; atendente e master escolhem na lista
+    if(usuario && !$('f_RESPONSAVEL').value && respValido(usuario.nome)) $('f_RESPONSAVEL').value = usuario.nome;
   }
   // estagiário não escolhe outro responsável: o atendimento é sempre dele
   if(estagF && usuario) $('f_RESPONSAVEL').value = usuario.nome;
@@ -1660,6 +1661,13 @@ async function salvarFicha(){
     if(!reg.EMPRESA)faltam.push('Empresa');
     if(!reg.RESPONSAVEL)faltam.push('Responsável');
     if(faltam.length){toast('Preencha os campos obrigatórios: '+faltam.join(', '));return}
+  }
+  // responsável precisa ser um advogado ou estagiário cadastrado
+  // (validado ao criar e sempre que o campo for alterado numa ficha existente)
+  if(reg.RESPONSAVEL && (!fichaAtual || normaliza(reg.RESPONSAVEL)!==normaliza(fichaAtual.RESPONSAVEL||''))){
+    const rOk = respValido(reg.RESPONSAVEL);
+    if(!rOk){toast('Responsável não encontrado: escolha um ADVOGADO ou ESTAGIÁRIO da lista (cadastrados em Usuários)');$('f_RESPONSAVEL').focus();return}
+    reg.RESPONSAVEL = rOk; // grava com a grafia exata do cadastro
   }
   if(!reg.DATA) reg.DATA = dataBR(new Date().toISOString().slice(0,10));
   loading(true,'Salvando…');
