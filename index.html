@@ -818,7 +818,11 @@ td.acao{white-space:nowrap}
         <div class="campo c2"><label>Nome</label><input id="f_NOME"></div>
         <div class="campo"><label>Telefone</label><input id="f_TELEFONE"></div>
         <div class="campo c2"><label>Empresa</label><input id="f_EMPRESA"></div>
-        <div class="campo"><label>Responsável</label><input id="f_RESPONSAVEL" list="dlResponsaveis" placeholder="Advogado ou estagiário" title="Escolha o advogado ou estagiário responsável pelo caso — o atendimento aparece na lista dele"></div>
+        <div class="campo"><label>Responsável</label>
+          <select id="f_RESPONSAVEL" title="Escolha o advogado ou estagiário responsável pelo caso — o atendimento aparece na lista dele">
+            <option value="">Selecione…</option>
+          </select>
+        </div>
         <div class="campo"><label>Pasta</label><input id="f_PASTA"></div>
         <div class="campo"><label>Data saída</label><input type="date" id="f_DATA_SAIDA"></div>
         <div class="campo c2"><label>Adv. atendimento</label><input id="f_ADV_ATENDIMENTO" placeholder="Automático pela agenda (ou digite)"></div>
@@ -1601,10 +1605,22 @@ function abrirFicha(id){
   $('fichaTitulo').textContent = fichaAtual ? 'Atendimento — '+(fichaAtual.NOME||'') : 'Novo atendimento';
   $('btnExcluir').style.display = (fichaAtual && usuario && usuario.master)?'inline-flex':'none';
   const g = c => fichaAtual ? (fichaAtual[c]||'') : '';
+  // lista suspensa do Responsável: todos os advogados e estagiários cadastrados
+  const selResp = $('f_RESPONSAVEL');
+  const respAtual = g('RESPONSAVEL');
+  const nomes = responsaveisCache.slice();
+  if(respAtual && !nomes.some(n=>normaliza(n)===normaliza(respAtual))) nomes.unshift(respAtual); // nome antigo continua visível
+  selResp.innerHTML = '<option value="">Selecione…</option>'+nomes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
   $('f_DATA').value = dataISO(g('DATA'))||g('DATA');
   $('f_DATA_SAIDA').value = dataISO(g('DATA_SAIDA'))||g('DATA_SAIDA');
   ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM','PRIORIDADE']
-    .forEach(c=>$('f_'+c).value=g(c));
+    .forEach(c=>{
+      const el=$('f_'+c); el.value=g(c);
+      if(c==='RESPONSAVEL' && el.value!==g(c)){ // select: casa ignorando acentos/caixa
+        const alvo=[...el.options].find(o=>normaliza(o.value)===normaliza(g(c)));
+        el.value = alvo?alvo.value:'';
+      }
+    });
   // o campo Horário saiu da aba Atendimentos (o dado antigo é preservado)
   $('f_HORARIO').closest('.campo').style.display='none';
   const estagF = souEstagiario();
@@ -1615,11 +1631,16 @@ function abrirFicha(id){
     $('f_DATA').value = new Date().toISOString().slice(0,10);
     // responsável: pré-preenche com quem está lançando apenas se ele próprio for
     // advogado/estagiário; atendente e master escolhem na lista
-    if(usuario && !$('f_RESPONSAVEL').value && respValido(usuario.nome)) $('f_RESPONSAVEL').value = usuario.nome;
+    if(usuario && !$('f_RESPONSAVEL').value){const rv=respValido(usuario.nome); if(rv)$('f_RESPONSAVEL').value=rv;}
   }
   // estagiário não escolhe outro responsável: o atendimento é sempre dele
-  if(estagF && usuario) $('f_RESPONSAVEL').value = usuario.nome;
-  $('f_RESPONSAVEL').readOnly = !!estagF;
+  if(estagF && usuario){
+    const sr=$('f_RESPONSAVEL');
+    if(![...sr.options].some(o=>normaliza(o.value)===normaliza(usuario.nome))) sr.insertAdjacentHTML('beforeend',`<option value="${esc(usuario.nome)}">${esc(usuario.nome)}</option>`);
+    const alvoE=[...sr.options].find(o=>normaliza(o.value)===normaliza(usuario.nome));
+    sr.value = alvoE?alvoE.value:usuario.nome;
+  }
+  $('f_RESPONSAVEL').disabled = !!estagF; // travado para o estagiário
   $('f_ADV_ATENDIMENTO').closest('.campo').style.display = estagF?'none':'';
   // descrição da pendência registrada na Conferência (somente leitura)
   const pendConf = g('CONF_OBS');
