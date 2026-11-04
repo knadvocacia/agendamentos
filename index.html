@@ -233,6 +233,7 @@ td.acao{white-space:nowrap}
       <button class="btn-topo" onclick="abrirMovAbertura('')" title="Movimentos de todas as abas — desfazer devolve o registro ao estado anterior">&#128336; Histórico</button>
       <button class="btn-topo" id="btnSync" onclick="sincronizar(false)" title="Busca agora os dados mais recentes da nuvem — tudo o que qualquer computador salvou aparece aqui">&#9729; Sincronizar</button>
       <button class="btn-topo" id="btnBaseLeads" style="display:none" onclick="abrirBaseLeads()" title="Todos os leads já importados ao sistema — nenhum é perdido, mesmo excluído da aba Lead">&#128218; Base de Leads</button>
+      <button class="btn-topo" id="btnAjuizados" style="display:none" onclick="abrirAjuizados()" title="Todos os processos com status AJUIZADO — somente o master">&#9878; Ajuizados</button>
       <button class="btn-topo" id="btnUsuarios" style="display:none" onclick="abrirUsuarios()" title="Adicionar usuários e senhas">&#128101; Usuários</button>
       <button class="btn-topo" onclick="sair()">Sair</button>
     </div>
@@ -365,6 +366,30 @@ td.acao{white-space:nowrap}
 </div>
 
 <!-- ================= MODAL EDITAR LEADS EM LOTE ================= -->
+<div class="modal-fundo" id="mAjuizados">
+  <div class="modal" style="max-width:980px">
+    <div class="modal-topo">
+      <h2>&#9878; Ajuizados</h2>
+      <button class="fechar" onclick="fecharModal('mAjuizados')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+        <input id="ajzBusca" placeholder="Buscar nome, reclamado, telefone ou pasta" style="flex:1;min-width:220px;padding:6px 9px;border:1px solid var(--linha);border-radius:6px" oninput="renderAjuizadosModal()">
+        <span id="ajzTotal" style="font-size:12px;color:var(--cinza)"></span>
+        <button class="btn btn-mini btn-borda" onclick="exportarExcel('ajuizadosConcluidos')" title="Baixar a lista filtrada em Excel">&#11015; Excel</button>
+        <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('ajuizadosConcluidos')" title="Baixar a lista filtrada em PDF">&#11015; PDF</button>
+      </div>
+      <div style="max-height:60vh;overflow:auto">
+        <table style="min-width:0">
+          <thead><tr class="nomes"><th>Data ajuiz.</th><th>Reclamante</th><th>Reclamado</th><th>Telefone</th><th>Nº Pasta</th><th>Resp. inicial</th><th></th></tr></thead>
+          <tbody id="corpoAjzModal"></tbody>
+        </table>
+        <div class="vazio" id="vazioAjzModal" style="display:none">Nenhum processo ajuizado ainda.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-fundo" id="mBaseLeads">
   <div class="modal" style="max-width:1000px">
     <div class="modal-topo">
@@ -1567,7 +1592,9 @@ function renderizar(){
     return (!mesAj || dataISO(r.DATA_FEITO).slice(0,7)===mesAj) &&
       (!ajSaida || dSaida===ajSaida) &&
       (!ajData || dAj===ajData) &&
-      (!ajSt || statusAj(r)===ajSt) &&
+      // sem filtro de status, os AJUIZADOS saem da lista (trabalho concluído);
+      // para revê-los, escolha AJUIZADO no filtro (ou clique no resumo AJUIZADOS)
+      (ajSt ? statusAj(r)===ajSt : statusAj(r)!=='AJUIZADO') &&
       Object.entries(fj).every(([c,v])=>normaliza(r[c]).includes(v));
   });
   ajVisiveis.sort((a,b)=>chaveData(a.DATA_FEITO).localeCompare(chaveData(b.DATA_FEITO)));
@@ -1591,9 +1618,9 @@ function renderizar(){
         <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')">Ficha</button>
       </td>
     </tr>`}).join('');
-  const nAjuizados = ajVisiveis.filter(r=>statusAj(r)==='AJUIZADO').length;
+  const nAjuizados = feitas.filter(r=>statusAj(r)==='AJUIZADO').length;
   $('badgeAjuizados').textContent = 'AJUIZADOS: '+nAjuizados;
-  $('badgeNaoAjuizados').textContent = 'NÃO AJUIZADOS: '+(ajVisiveis.length-nAjuizados);
+  $('badgeNaoAjuizados').textContent = 'NÃO AJUIZADOS: '+(feitas.length-nAjuizados);
   Object.assign(dadosExport, {atendimentos:visiveis, aberturaPendentes:pendentes, pastasAbertas:histVisiveis, iniciais:iniVisiveis, ajuizamento:ajVisiveis}); // preserva baseLeads
   $('vazioAjuiz').style.display = ajVisiveis.length?'none':'block';
   $('contAjuiz').textContent = nNaoAjuizadas; // processos não ajuizados
@@ -1606,11 +1633,17 @@ function abrirFicha(id){
   $('btnExcluir').style.display = (fichaAtual && usuario && usuario.master)?'inline-flex':'none';
   const g = c => fichaAtual ? (fichaAtual[c]||'') : '';
   // lista suspensa do Responsável: todos os advogados e estagiários cadastrados
-  const selResp = $('f_RESPONSAVEL');
   const respAtual = g('RESPONSAVEL');
-  const nomes = responsaveisCache.slice();
-  if(respAtual && !nomes.some(n=>normaliza(n)===normaliza(respAtual))) nomes.unshift(respAtual); // nome antigo continua visível
-  selResp.innerHTML = '<option value="">Selecione…</option>'+nomes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  montarOpcoesResp(respAtual);
+  if(!responsaveisCache.length){
+    // lista ainda não carregada neste computador: busca agora e preenche a lista aberta
+    garantirResponsaveis().then(()=>{
+      const sel=$('f_RESPONSAVEL');
+      const marcado = sel.value || respAtual;
+      montarOpcoesResp(marcado);
+      if(marcado){const alvo=[...sel.options].find(o=>normaliza(o.value)===normaliza(marcado)); sel.value = alvo?alvo.value:'';}
+    });
+  }
   $('f_DATA').value = dataISO(g('DATA'))||g('DATA');
   $('f_DATA_SAIDA').value = dataISO(g('DATA_SAIDA'))||g('DATA_SAIDA');
   ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM','PRIORIDADE']
@@ -1641,7 +1674,7 @@ function abrirFicha(id){
     sr.value = alvoE?alvoE.value:usuario.nome;
   }
   $('f_RESPONSAVEL').disabled = !!estagF; // travado para o estagiário
-  $('f_ADV_ATENDIMENTO').closest('.campo').style.display = estagF?'none':'';
+  $('f_ADV_ATENDIMENTO').closest('.campo').style.display = 'none'; // campo retirado da ficha
   // descrição da pendência registrada na Conferência (somente leitura)
   const pendConf = g('CONF_OBS');
   $('boxPendConf').style.display = pendConf?'block':'none';
@@ -2082,6 +2115,30 @@ async function postAgHist(registro,acao){
   return r;
 }
 
+function abrirAjuizados(){
+  $('ajzBusca').value='';
+  renderAjuizadosModal();
+  $('mAjuizados').classList.add('aberto');
+}
+function renderAjuizadosModal(){
+  const q = normaliza($('ajzBusca').value);
+  const vis = registros.filter(r=>normaliza(r.AJUIZ_STATUS)==='AJUIZADO')
+    .filter(r=>!q || normaliza(r.NOME).includes(q)||normaliza(r.EMPRESA).includes(q)||normaliza(r.TELEFONE).includes(q)||normaliza(r.PASTA_CPJ).includes(q))
+    .sort((a,b)=>chaveData(b.AJUIZ_DATA).localeCompare(chaveData(a.AJUIZ_DATA))); // mais recentes primeiro
+  $('corpoAjzModal').innerHTML = vis.map(r=>`<tr>
+      <td style="white-space:nowrap">${esc(dataBR(r.AJUIZ_DATA))}</td>
+      <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b></td>
+      <td title="${esc(r.EMPRESA)}">${esc(r.EMPRESA)}</td>
+      <td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
+      <td><b>${esc(r.PASTA_CPJ)}</b></td>
+      <td title="${esc(r.INICIAL_RESP||'')}">${esc(r.INICIAL_RESP||'')}</td>
+      <td class="acao"><button class="btn btn-mini btn-borda" onclick="fecharModal('mAjuizados');abrirFicha('${r.ID}')">Ficha</button></td>
+    </tr>`).join('');
+  $('vazioAjzModal').style.display = vis.length?'none':'block';
+  $('ajzTotal').textContent = vis.length+' processo(s)';
+  dadosExport.ajuizadosConcluidos = vis;
+}
+
 let baseLeadsCache = [];
 async function abrirBaseLeads(){
   loading(true,'Carregando a base de leads…');
@@ -2405,6 +2462,20 @@ let responsaveisCache = [];
 function aplicarEstagiarios(lista){
   estagiariosCache = lista||[];
   $('dlEstagiarios').innerHTML = estagiariosCache.map(n=>`<option value="${esc(n)}">`).join('');
+}
+function montarOpcoesResp(respAtual){
+  const sel = $('f_RESPONSAVEL');
+  if(!sel) return;
+  const nomes = responsaveisCache.length ? responsaveisCache.slice() : estagiariosCache.slice();
+  if(respAtual && !nomes.some(n=>normaliza(n)===normaliza(respAtual))) nomes.unshift(respAtual); // nome antigo continua visível
+  sel.innerHTML = '<option value="">Selecione…</option>'+nomes.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+}
+async function garantirResponsaveis(){
+  if(responsaveisCache.length) return;
+  try{
+    const r = await apiPost({action:'listarEstagiarios'}); // devolve estagiários e advogados
+    if(r.ok) aplicarResponsaveis(r.estagiarios||[]);
+  }catch(e){}
 }
 function aplicarResponsaveis(lista){
   responsaveisCache = lista||[];
@@ -3339,6 +3410,10 @@ let dadosExport = {};
 let subAtual = 'pendentes';
 
 const EXPORT_DEFS = {
+  ajuizadosConcluidos: {titulo:'Ajuizados', colunas:[
+    ['AJUIZ_DATA','Data ajuizamento',80],['NOME','Reclamante',160],['EMPRESA','Reclamado',160],
+    ['TELEFONE','Telefone',95],['PASTA_CPJ','Nº Pasta',75],['INICIAL_RESP','Resp. inicial',100],
+    ['DATA_SAIDA','Data saída',70]]},
   baseLeads: {titulo:'Base de Leads', colunas:[
     ['BASE','Base',55],['PRACA','Praça',60],['DATA','Data',60],['NOME','Nome',150],['TELEFONE','Telefone',90],
     ['EMPRESA','Empresa',130],['RESPONSAVEL','Responsável',100],['STATUS','Status',110],['SITUACAO','Situação',120]]},
@@ -3464,7 +3539,7 @@ async function entrar(){
     const r = await apiPost({action:'loginCompleto',senha});
     loading(false);
     if(r.ok){
-      usuario = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha, abas:String(r.abas||'').split(',').filter(Boolean)};
+      usuario = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha, abas:String(r.abas||'').split(',').map(s=>s.trim()).filter(Boolean)};
       sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
       aplicarLogin(true);
       aplicarDados(r);
@@ -3472,7 +3547,7 @@ async function entrar(){
       // implantação antiga do Code.gs: caminho anterior (2 viagens)
       const r1 = await apiPost({action:'login',senha});
       if(r1.ok){
-        usuario = {nome:r1.nome, master:!!r1.master, tipo:r1.tipo||'ADVOGADO', senha, abas:String(r1.abas||'').split(',').filter(Boolean)};
+        usuario = {nome:r1.nome, master:!!r1.master, tipo:r1.tipo||'ADVOGADO', senha, abas:String(r1.abas||'').split(',').map(s=>s.trim()).filter(Boolean)};
         sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
         aplicarLogin();
       }else{$('loginErro').textContent = r1.erro||'Senha incorreta'}
@@ -3482,13 +3557,20 @@ async function entrar(){
   }catch(e){loading(false);$('loginErro').textContent='Falha de conexão'}
 }
 
-function podeAba(a){return usuario && (usuario.master || (usuario.abas||[]).includes(a))}
+function podeAba(a){
+  // compara ignorando maiúsculas, acentos e espaços — um "AJUIZAMENTO" gravado
+  // em caps na planilha continua valendo como permissão de ajuizamento
+  if(!usuario) return false;
+  if(usuario.master) return true;
+  return (usuario.abas||[]).some(x=>normaliza(x)===normaliza(a));
+}
 
 function aplicarPermissoesUI(){
   document.body.classList.toggle('modo-estag', souEstagiario());
   $('usuLogado').textContent = usuario.nome;
   $('btnUsuarios').style.display = usuario.master?'inline-flex':'none';
   $('btnBaseLeads').style.display = usuario.master?'inline-flex':'none';
+  $('btnAjuizados').style.display = usuario.master?'inline-flex':'none';
   document.querySelectorAll('.master-so').forEach(el=>el.style.display = usuario.master?'inline-flex':'none');
   document.querySelectorAll('.aba').forEach(b=>{
     b.style.display = podeAba(b.dataset.aba)?'inline-flex':'none';
@@ -3514,7 +3596,7 @@ async function sessaoCompleta(silencioso){
     const r = await apiPost({action:'loginCompleto',senha:usuario.senha});
     loading(false);
     if(r.ok){
-      usuario = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha:usuario.senha, abas:String(r.abas||'').split(',').filter(Boolean)};
+      usuario = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha:usuario.senha, abas:String(r.abas||'').split(',').map(s=>s.trim()).filter(Boolean)};
       sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
@@ -3546,7 +3628,7 @@ async function revalidarSessao(){
       toast('Sua senha ou seu acesso mudou — entre novamente');
       return;
     }
-    const novo = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha:usuario.senha, abas:String(r.abas||'').split(',').filter(Boolean)};
+    const novo = {nome:r.nome, master:!!r.master, tipo:r.tipo||'ADVOGADO', senha:usuario.senha, abas:String(r.abas||'').split(',').map(s=>s.trim()).filter(Boolean)};
     const mudou = JSON.stringify([novo.master,novo.tipo,novo.abas]) !== JSON.stringify([usuario.master,usuario.tipo||'ADVOGADO',usuario.abas||[]]);
     usuario = novo;
     sessionStorage.setItem('usuarioADV', JSON.stringify(usuario));
@@ -3574,7 +3656,7 @@ function sair(){
 }
 
 function trocarAba(nome){
-  if(usuario && !usuario.master && !(usuario.abas||[]).includes(nome)) return;
+  if(usuario && !podeAba(nome)) return;
   document.querySelectorAll('.aba').forEach(b=>b.classList.toggle('ativa',b.dataset.aba===nome));
   document.querySelectorAll('.painel').forEach(p=>p.classList.remove('ativo'));
   $('painel-'+nome).classList.add('ativo');
