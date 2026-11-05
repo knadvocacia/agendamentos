@@ -2855,16 +2855,21 @@ function importarLeads(input){
       loading(false);
       if(resp.ok){
         const d = resp.distribuicao;
-        let msg = resp.total+' leads importados';
+        let msg = resp.total+' leads importados para a aba Lead';
         if(d && d.ok){
           msg += ' · '+(d.distribuidos||0)+' enviados agora';
           if(d.duplicados) msg += ' · '+d.duplicados+' já existiam em Atendimentos (não reenviados)';
-          if(d.aguardando) msg += ' · '+d.aguardando+' na fila (limite de 15/dia por estagiário)';
+          if(d.aguardando) msg += ' · '+d.aguardando+' na fila para os próximos dias (15/dia por responsável, por praça)';
           if(d.motivo==='fim de semana') msg += ' · distribuição ocorre em dias úteis';
           if(d.bloqueados && d.bloqueados.length) msg += ' · sem receber (30+ atrasados): '+d.bloqueados.join(', ');
         }
-        toast(msg);
+        // garante que os importados apareçam na hora: limpa os filtros do Lead e abre a aba
+        document.querySelectorAll('[data-fl]').forEach(el=>el.value='');
+        $('fLeadAtend').value='';
+        leadSel.clear();
         await carregar();
+        trocarAba('lead');
+        toast(msg);
       }
       else toast('Erro: '+resp.erro);
     })();
