@@ -2519,7 +2519,16 @@ function renderLeads(){
     else if(atF && normaliza(r.ATENDENTE)!==normaliza(atF)) return false;
     return Object.entries(fl).every(([c,v])=>normaliza(c==='DATA'?dataBR(r.DATA):r[c]).includes(v));
   });
-  visiveis.sort((a,b)=>((leadEnviado(a)?(dataISO(a.DATA)||'0000'):'0000')+' '+chaveCriado(a.CRIADO_EM)).localeCompare((leadEnviado(b)?(dataISO(b.DATA)||'0000'):'0000')+' '+chaveCriado(b.CRIADO_EM)));
+  // na fila (não enviados) primeiro, com os IMPORTADOS MAIS RECENTES no topo;
+  // depois os enviados, do envio mais recente para o mais antigo
+  visiveis.sort((a,b)=>{
+    const ga=leadEnviado(a)?1:0, gb=leadEnviado(b)?1:0;
+    if(ga!==gb) return ga-gb;
+    if(!ga) return chaveCriado(b.CRIADO_EM).localeCompare(chaveCriado(a.CRIADO_EM));
+    const da=dataISO(a.DATA)||'', db=dataISO(b.DATA)||'';
+    if(da!==db) return db.localeCompare(da);
+    return chaveCriado(b.CRIADO_EM).localeCompare(chaveCriado(a.CRIADO_EM));
+  });
 
   $('corpoLead').innerHTML = visiveis.map(r=>{
     return `<tr class="${r.ATENDENTE?'st-verde':''}">
