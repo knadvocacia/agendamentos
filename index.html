@@ -1186,10 +1186,21 @@ function avisarNovos(){
   _novosAnterior = n;
 }
 
+function desCompactar(cols, linhas){
+  return (linhas||[]).map(l=>{const o={};cols.forEach((c,i)=>o[c]=l[i]===undefined?'':l[i]);return o;});
+}
+
 function aplicarDados(r){
-  registros = r.atendimentos||[];
-  agRegistros = r.agendamentos||[];
-  leadRegistros = r.leads||[];
+  if(r.cols && r.at){
+    // formato compacto (v25+): colunas uma vez, linhas só com valores
+    registros = desCompactar(r.cols.at, r.at);
+    leadRegistros = desCompactar(r.cols.ld, r.ld);
+    agRegistros = [];
+  }else{
+    registros = r.atendimentos||[];
+    agRegistros = r.agendamentos||[];
+    leadRegistros = r.leads||[];
+  }
   renderizar();
   renderAgendamentos();
   renderLeads();
