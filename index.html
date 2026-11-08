@@ -1220,8 +1220,10 @@ async function apiPost(payload){
   let j = await resp.json();
   if(j && j.gz){
     const info = j;
-    j = await desGzip(j.gz);
-    if(pesada) console.log('[carga] '+Math.round(performance.now()-t0)+' ms · baixados '+(info.kbGz||'?')+' KB compactados (originais: '+(info.kbOrig||'?')+' KB)');
+    const dados = await desGzip(j.gz);
+    j = Object.assign({}, info, dados); // mantém os campos próprios da resposta (ex.: login) + a carga
+    delete j.gz;
+    if(pesada) console.log('[carga] total '+Math.round(performance.now()-t0)+' ms · servidor '+(info.tMs!=null?info.tMs+' ms':'?')+(info.cacheSrv?' (do cache)':' (montou agora)')+' · baixados '+(info.kbGz||'?')+' KB (originais: '+(info.kbOrig||'?')+' KB) · '+(dados.vSrv||''));
   }else if(pesada){
     console.log('[carga] '+Math.round(performance.now()-t0)+' ms (sem compactação — implantação antiga do Code.gs?)');
   }
