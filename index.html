@@ -62,6 +62,19 @@ main{padding:18px 26px;max-width:1600px;margin:0 auto}
 .badge-amarelo{background:var(--amarelo-bg);color:var(--amarelo-tx);border-color:var(--amarelo-bd)}
 .badge-vermelho{background:var(--vermelho-bg);color:var(--vermelho-tx);border-color:var(--vermelho-bd)}
 .badge-neutro{background:var(--navy);color:#e8e4da;border-color:var(--navy)}
+.res-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+.res-card{background:var(--branco);border:1px solid var(--linha);border-radius:9px;padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.res-card b{font-size:26px;line-height:1}
+.res-card span{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--cinza)}
+.rc-verde{background:var(--verde-bg);border-color:var(--verde-bd)}.rc-verde b{color:var(--verde-tx)}
+.rc-vermelho{background:var(--vermelho-bg);border-color:var(--vermelho-bd)}.rc-vermelho b{color:var(--vermelho-tx)}
+.rc-amarelo{background:var(--amarelo-bg);border-color:var(--amarelo-bd)}.rc-amarelo b{color:var(--amarelo-tx)}
+.rc-azul b{color:var(--navy)}
+.rc-cinza b{color:var(--cinza)}
+.res-duas{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+@media(max-width:1100px){.res-duas{grid-template-columns:1fr}}
+.res-titulo{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--navy);padding:10px 12px 6px}
+.res-legenda{font-size:11px;color:var(--cinza);padding:8px 12px 10px;line-height:1.5}
 .periodo-box{display:inline-flex;align-items:center;gap:6px;background:var(--branco);border:1px solid var(--linha);border-radius:7px;padding:4px 8px}
 .periodo-box label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza)}
 .periodo-box input{border:none;padding:4px 2px;font-size:13px}
@@ -251,6 +264,7 @@ td.acao{white-space:nowrap}
     <button class="aba" data-aba="conferencia" onclick="trocarAba('conferencia')">Conferência <span class="cont" id="contConf">0</span></button>
     <button class="aba" data-aba="iniciais" onclick="trocarAba('iniciais')">Iniciais para elaborar <span class="cont" id="contIniciais">0</span></button>
     <button class="aba" data-aba="ajuizamento" onclick="trocarAba('ajuizamento')">Ajuizamento <span class="cont" id="contAjuiz">0</span></button>
+    <button class="aba" data-aba="resumo" onclick="trocarAba('resumo')">&#128202; Resumo</button>
   </div>
 </header>
 
@@ -696,7 +710,7 @@ td.acao{white-space:nowrap}
 <!-- ================= ABA: CONFERÊNCIA ================= -->
 <section class="painel" id="painel-conferencia">
   <div class="barra">
-    <span style="color:var(--cinza);font-size:13px">Toda pasta aberta entra aqui para conferência · <b style="color:var(--vermelho-tx)">PENDÊNCIA DE DOCUMENTOS</b> devolve a pasta para Atendimentos como PENDENTE DE DOCUMENTO.</span>
+    <span style="color:var(--cinza);font-size:13px">Toda pasta aberta entra aqui já distribuída automaticamente entre as conferentes (rodízio) · <b style="color:var(--vermelho-tx)">PENDÊNCIA DE DOCUMENTOS</b> devolve a pasta para Atendimentos como PENDENTE DE DOCUMENTO.</span>
     <div class="direita"><button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button></div>
   </div>
   <div class="tabela-wrap">
@@ -709,6 +723,7 @@ td.acao{white-space:nowrap}
           <th></th>
           <th><input data-fc="PASTA_CPJ" placeholder="Filtrar"></th>
           <th></th>
+          <th><input data-fc="CONF_RESP" placeholder="Filtrar"></th>
           <th><select id="fConfStatus">
             <option value="">Todos</option>
             <option value="__SEM__">(não conferido)</option>
@@ -719,7 +734,7 @@ td.acao{white-space:nowrap}
         </tr>
         <tr class="nomes">
           <th>Data abertura</th><th>Reclamante</th><th>Reclamado</th><th>Telefone</th>
-          <th>Nº Pasta CPJ</th><th>Docs</th><th>Status</th><th>Ações</th>
+          <th>Nº Pasta CPJ</th><th>Docs</th><th>Conferido por</th><th>Status</th><th>Ações</th>
         </tr>
       </thead>
       <tbody id="corpoConf"></tbody>
@@ -827,6 +842,55 @@ td.acao{white-space:nowrap}
   </div>
 </section>
 
+<!-- ================= ABA: RESUMO ================= -->
+<section class="painel" id="painel-resumo">
+  <div class="barra">
+    <span class="periodo-box">
+      <label>Per&iacute;odo:</label>
+      <input type="date" id="fResDe" onchange="renderResumo()" title="Data inicial (pela data do lead/atendimento)">
+      <span style="color:var(--cinza);font-size:12px">at&eacute;</span>
+      <input type="date" id="fResAte" onchange="renderResumo()" title="Data final">
+    </span>
+    <button class="btn btn-mini btn-borda" onclick="resPeriodo('hoje')">Hoje</button>
+    <button class="btn btn-mini btn-borda" onclick="resPeriodo('7')">&Uacute;ltimos 7 dias</button>
+    <button class="btn btn-mini btn-borda" onclick="resPeriodo('mes')">Este m&ecirc;s</button>
+    <button class="btn btn-mini btn-borda" onclick="resPeriodo('mesPassado')">M&ecirc;s passado</button>
+    <button class="btn btn-mini btn-borda" onclick="$('fResDe').value='';$('fResAte').value='';renderResumo()">Tudo</button>
+    <div class="direita"><button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button></div>
+  </div>
+  <div class="res-cards">
+    <div class="res-card"><b id="resTotal">0</b><span>Leads no per&iacute;odo</span></div>
+    <div class="res-card rc-verde"><b id="resFechou">0</b><span>Fecharam</span></div>
+    <div class="res-card rc-amarelo"><b id="resSemContato">0</b><span>N&atilde;o conseguiu contato</span></div>
+    <div class="res-card rc-cinza"><b id="resNaoTrab">0</b><span>Ainda n&atilde;o trabalhado (sem status)</span></div>
+    <div class="res-card rc-vermelho"><b id="resNaoFechou">0</b><span>N&atilde;o fechou</span></div>
+    <div class="res-card rc-azul"><b id="resAndamento">0</b><span>Em andamento</span></div>
+  </div>
+  <div id="resFila" style="font-size:12.5px;color:var(--cinza);margin:2px 0 10px"></div>
+  <div class="res-duas">
+    <div class="tabela-wrap">
+      <div class="res-titulo">Produ&ccedil;&atilde;o por estagi&aacute;rio / advogado (leads do per&iacute;odo)</div>
+      <table>
+        <thead><tr class="nomes"><th>Respons&aacute;vel</th><th>Leads</th><th>Ligou</th><th>Agendou</th><th>Fechou</th><th>% Fech.</th></tr></thead>
+        <tbody id="corpoResResp"></tbody>
+      </table>
+      <div class="vazio" id="vazioResResp" style="display:none">Nenhum lead no per&iacute;odo.</div>
+      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = status FECHOU (inclui pendente de docs) &middot; N&Atilde;O FECHOU = sem interesse, sem direito, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
+    </div>
+    <div class="tabela-wrap" id="boxResAdv">
+      <div class="res-titulo">Confer&ecirc;ncias e iniciais por advogada</div>
+      <table>
+        <thead><tr class="nomes"><th>Advogada</th><th>Pastas conferidas</th><th>Iniciais feitas</th></tr></thead>
+        <tbody id="corpoResAdv"></tbody>
+      </table>
+      <div class="vazio" id="vazioResAdv" style="display:none">Nenhuma confer&ecirc;ncia ou inicial no per&iacute;odo.</div>
+      <div class="res-legenda">Pastas conferidas = pastas em que o nome foi lan&ccedil;ado em &quot;Conferido por&quot; na aba Confer&ecirc;ncia (conta pela data da confer&ecirc;ncia) &middot; Iniciais feitas = iniciais com status FEITO em que ela &eacute; a respons&aacute;vel (conta pela data do FEITO).</div>
+    </div>
+  </div>
+</section>
+
+<datalist id="dlConferentes"></datalist>
+
 </main>
 
 <!-- ================= MODAL FICHA ================= -->
@@ -865,6 +929,13 @@ td.acao{white-space:nowrap}
           <select id="f_PRIORIDADE" title="SIM = pasta urgente: fica no topo da aba Abertura de Pasta com o aviso PRIORIDADE">
             <option value="">NÃO</option>
             <option value="SIM">SIM</option>
+          </select>
+        </div>
+        <div class="campo"><label>Área</label>
+          <select id="f_AREA" title="Área do atendimento: trabalhista ou previdenciário">
+            <option value=""></option>
+            <option value="TRABALHISTA">TRABALHISTA</option>
+            <option value="PREVIDENCIÁRIO">PREVIDENCIÁRIO</option>
           </select>
         </div>
         <div class="campo"><label>Origem</label>
@@ -1006,6 +1077,7 @@ td.acao{white-space:nowrap}
           <label><input type="checkbox" id="novoConf"> Conferência</label>
           <label><input type="checkbox" id="novoInic"> Iniciais</label>
           <label><input type="checkbox" id="novoAjuiz"> Ajuizamento</label>
+          <label><input type="checkbox" id="novoResumo"> Resumo</label>
         </span>
         <button class="btn btn-mini btn-principal" onclick="adicionarUsuario()">+ Adicionar</button>
       </div>
@@ -1057,10 +1129,14 @@ const DOCS_OBRIG = [
   ['DOC_RESUMO_DIREITO','Resumo Direito'],
   ['DOC_PROCURACAO','Procuração/Declaração/Contrato']
 ];
+function docsLen(r,c){
+  const v = r ? r[c] : '';
+  if(typeof v==='number') return v;      // carga leve: só a contagem
+  if(!v) return 0;
+  try{return JSON.parse(v).length}catch(e){return 0}
+}
 function docsObrigFaltantes(r){
-  return DOCS_OBRIG.filter(([c])=>{
-    try{return JSON.parse(r[c]||'[]').length===0}catch(e){return true}
-  }).map(([,t])=>t);
+  return DOCS_OBRIG.filter(([c])=>docsLen(r,c)===0).map(([,t])=>t);
 }
 const DOCS_OPC = [
   ['DOC_CONTRACHEQUES','Contracheques / holerites (últimos 3 meses)'],
@@ -1111,7 +1187,7 @@ function chaveCriado(v){
 }
 function totalDocs(r){
   let n=0;
-  [...DOCS_OBRIG,...DOCS_OPC,['DOC_OUTROS']].forEach(([c])=>{try{n+=JSON.parse(r[c]||'[]').length}catch(e){}});
+  [...DOCS_OBRIG,...DOCS_OPC,['DOC_OUTROS']].forEach(([c])=>{n+=docsLen(r,c)});
   return n;
 }
 
@@ -1187,7 +1263,15 @@ function avisarNovos(){
 }
 
 function desCompactar(cols, linhas){
-  return (linhas||[]).map(l=>{const o={};cols.forEach((c,i)=>o[c]=l[i]===undefined?'':l[i]);return o;});
+  const docCol = cols.map(c=>c.indexOf('DOC_')===0 && c!=='DOC_SITUACAO' && c!=='DOC_FALTANDO');
+  return (linhas||[]).map(l=>{
+    const o={};
+    cols.forEach((c,i)=>{
+      const v=l[i];
+      o[c] = (v===undefined||v===null)?'':(typeof v==='number' && !docCol[i] ? String(v) : v);
+    });
+    return o;
+  });
 }
 
 function aplicarDados(r){
@@ -1523,6 +1607,12 @@ function renderizar(){
       <td><b>${esc(r.NOME)}</b></td><td>${esc(r.EMPRESA)}</td><td>${esc(r.TELEFONE)}</td>
       <td><b>${esc(r.PASTA_CPJ)}</b></td>
       <td><span class="docs-chip">${totalDocs(r)} arq.</span></td>
+      <td style="min-width:175px">
+        <span style="display:flex;gap:3px;align-items:center">
+          <input list="dlConferentes" id="confResp_${r.ID}" placeholder="Quem conferiu" value="${esc(r.CONF_RESP||'')}" style="width:140px" onchange="salvarConfResp('${r.ID}')" title="Digite o início do nome: os nomes já usados aparecem para escolher">
+          <button class="btn btn-mini btn-borda" onclick="novoConferente('${r.ID}')" title="Adicionar um nome novo à lista de quem confere">+</button>
+        </span>
+      </td>
       <td style="min-width:280px">
         <select onchange="confMudaStatus('${r.ID}',this)">
           <option value=""></option>
@@ -1572,7 +1662,7 @@ function renderizar(){
       <td><b>${esc(r.EMPRESA)}</b></td>
       <td>${esc(r.PASTA_CPJ)}</td>
       <td>${esc(dataBR(r.DATA_SAIDA))}</td>
-      <td><input style="width:100%" id="iniResp_${r.ID}" placeholder="Responsável" value="${esc(r.INICIAL_RESP||'')}"></td>
+      <td><input list="dlConferentes" style="width:100%" id="iniResp_${r.ID}" placeholder="Responsável" value="${esc(r.INICIAL_RESP||'')}" title="Digite o início do nome: os nomes já usados aparecem para escolher"></td>
       <td><input style="width:100%" id="iniObs_${r.ID}" placeholder="Observação" value="${esc(r.INICIAL_OBS||'')}"></td>
       <td>
         <select onchange="salvarInicialStatus('${r.ID}',this.value)">
@@ -1635,6 +1725,120 @@ function renderizar(){
   Object.assign(dadosExport, {atendimentos:visiveis, aberturaPendentes:pendentes, pastasAbertas:histVisiveis, iniciais:iniVisiveis, ajuizamento:ajVisiveis}); // preserva baseLeads
   $('vazioAjuiz').style.display = ajVisiveis.length?'none':'block';
   $('contAjuiz').textContent = nNaoAjuizadas; // processos não ajuizados
+  montarDlConferentes();
+  renderResumo();
+}
+
+/* ===================== aba RESUMO ===================== */
+let conferentesExtras = [];   // nomes adicionados pelo botão + (até serem gravados num registro)
+let resumoIniciado = false;
+const RES_SEM_CONTATO = ['TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
+const RES_NAO_FECHOU  = ['SEM INTERESSE','SEM DIREITO','PRESCRITO','JA TEM ACAO'];
+const RES_AGENDOU     = ['ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
+function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'}
+function listaConferentes(){
+  const nomes = new Set(conferentesExtras);
+  registros.forEach(r=>{
+    if(String(r.CONF_RESP||'').trim())nomes.add(String(r.CONF_RESP).trim());
+    if(String(r.INICIAL_RESP||'').trim())nomes.add(String(r.INICIAL_RESP).trim());
+  });
+  return [...nomes].sort();
+}
+function montarDlConferentes(){
+  const dl=$('dlConferentes'); if(!dl)return;
+  dl.innerHTML = listaConferentes().map(n=>`<option value="${esc(n)}">`).join('');
+}
+async function salvarConfResp(id){
+  const r = registros.find(x=>x.ID===id);
+  const quem = $('confResp_'+id).value.trim().toUpperCase();
+  if(r && normaliza(r.CONF_RESP||'')===normaliza(quem))return;
+  const resp = await postHist({ID:id,CONF_RESP:quem},quem?('Conferência: conferido por '+quem):'Conferência: nome de quem conferiu removido','CONFERÊNCIA');
+  if(resp.ok){if(r)r.CONF_RESP=quem;montarDlConferentes();renderResumo();toast(quem?('Conferido por: '+quem):'Nome removido')}
+  else toast('Erro: '+resp.erro);
+}
+function novoConferente(id){
+  const nome = prompt('Nome de quem conferiu (entra na lista de nomes):');
+  if(!nome || !nome.trim())return;
+  const n = nome.trim().toUpperCase();
+  if(!conferentesExtras.includes(n))conferentesExtras.push(n);
+  montarDlConferentes();
+  if(id && $('confResp_'+id)){$('confResp_'+id).value=n;salvarConfResp(id)}
+}
+function pad2res(n){return String(n).padStart(2,'0')}
+function resPeriodo(tipo){
+  const hoje=new Date();
+  const iso=d=>d.getFullYear()+'-'+pad2res(d.getMonth()+1)+'-'+pad2res(d.getDate());
+  let de='',ate='';
+  if(tipo==='hoje'){de=ate=iso(hoje)}
+  else if(tipo==='7'){const d=new Date(hoje);d.setDate(d.getDate()-6);de=iso(d);ate=iso(hoje)}
+  else if(tipo==='mes'){de=iso(new Date(hoje.getFullYear(),hoje.getMonth(),1));ate=iso(new Date(hoje.getFullYear(),hoje.getMonth()+1,0))}
+  else if(tipo==='mesPassado'){de=iso(new Date(hoje.getFullYear(),hoje.getMonth()-1,1));ate=iso(new Date(hoje.getFullYear(),hoje.getMonth(),0))}
+  $('fResDe').value=de;$('fResAte').value=ate;
+  renderResumo();
+}
+function renderResumo(){
+  if(!$('painel-resumo'))return;
+  if(!resumoIniciado){
+    resumoIniciado=true;
+    if(!$('fResDe').value && !$('fResAte').value)resPeriodo('mes'); // abre já no mês atual
+    return; // resPeriodo chama renderResumo de novo
+  }
+  const de=$('fResDe').value, ate=$('fResAte').value;
+  const dentro = iso => (!de || (iso && iso>=de)) && (!ate || (iso && iso<=ate));
+  const minha = veSoProprios();
+  const base = (minha ? registros.filter(r=>normaliza(r.RESPONSAVEL)===normaliza(usuario.nome)) : registros)
+    .filter(r=>dentro(dataISO(r.DATA)));
+  let nFech=0,nSem=0,nNao=0,nVazio=0,nAnd=0;
+  const porResp = {};
+  base.forEach(r=>{
+    const st = normaliza(r.STATUS);
+    if(resFechou(st))nFech++;
+    else if(!st)nVazio++;
+    else if(RES_SEM_CONTATO.includes(st))nSem++;
+    else if(RES_NAO_FECHOU.includes(st))nNao++;
+    else nAnd++;
+    const nome = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
+    const o = porResp[nome]||(porResp[nome]={leads:0,ligou:0,agendou:0,fechou:0});
+    o.leads++;
+    if(st)o.ligou++;
+    if(RES_AGENDOU.includes(st))o.agendou++;
+    if(resFechou(st))o.fechou++;
+  });
+  $('resTotal').textContent=base.length;
+  $('resFechou').textContent=nFech;
+  $('resSemContato').textContent=nSem;
+  $('resNaoTrab').textContent=nVazio;
+  $('resNaoFechou').textContent=nNao;
+  $('resAndamento').textContent=nAnd;
+  // fila da aba Lead ainda não distribuída (não depende do período)
+  const fila = (typeof leadRegistros!=='undefined'?leadRegistros:[]).filter(r=>!leadEnviado(r)).length;
+  $('resFila').textContent = minha ? '' : ('Além desses, há '+fila+' lead(s) na fila da aba Lead, ainda não distribuídos.');
+  const nomes = Object.keys(porResp).sort((a,b)=>porResp[b].fechou-porResp[a].fechou || porResp[b].leads-porResp[a].leads);
+  $('corpoResResp').innerHTML = nomes.map(n=>{
+    const o=porResp[n];
+    const pct = o.leads?Math.round(o.fechou*100/o.leads):0;
+    return `<tr><td><b>${esc(n)}</b></td><td>${o.leads}</td><td>${o.ligou}</td><td>${o.agendou}</td><td><b>${o.fechou}</b></td><td>${pct}%</td></tr>`;
+  }).join('');
+  $('vazioResResp').style.display = nomes.length?'none':'block';
+  // conferências e iniciais por advogada — contadas pelas PRÓPRIAS datas (conferência / FEITO)
+  const porAdv = {};
+  registros.forEach(r=>{
+    const conf = String(r.CONF_RESP||'').trim();
+    if(conf && String(r.CONF_STATUS||'').trim() && dentro(dataISO(r.CONF_DATA)||dataISO(r.DATA_ABERTURA))){
+      (porAdv[conf]||(porAdv[conf]={conf:0,ini:0})).conf++;
+    }
+    const ini = String(r.INICIAL_RESP||'').trim();
+    if(ini && normaliza(r.INICIAL_STATUS)==='FEITO' && dentro(dataISO(r.DATA_FEITO))){
+      (porAdv[ini]||(porAdv[ini]={conf:0,ini:0})).ini++;
+    }
+  });
+  const advs = Object.keys(porAdv).sort((a,b)=>(porAdv[b].conf+porAdv[b].ini)-(porAdv[a].conf+porAdv[a].ini));
+  $('corpoResAdv').innerHTML = advs.map(n=>{
+    const o=porAdv[n];
+    return `<tr><td><b>${esc(n)}</b></td><td>${o.conf}</td><td>${o.ini}</td></tr>`;
+  }).join('');
+  $('vazioResAdv').style.display = advs.length?'none':'block';
+  $('boxResAdv').style.display = minha?'none':'';
 }
 
 /* ===================== ficha (modal) ===================== */
@@ -1657,7 +1861,7 @@ function abrirFicha(id){
   }
   $('f_DATA').value = dataISO(g('DATA'))||g('DATA');
   $('f_DATA_SAIDA').value = dataISO(g('DATA_SAIDA'))||g('DATA_SAIDA');
-  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM','PRIORIDADE']
+  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM','PRIORIDADE','AREA']
     .forEach(c=>{
       const el=$('f_'+c); el.value=g(c);
       if(c==='RESPONSAVEL' && el.value!==g(c)){ // select: casa ignorando acentos/caixa
@@ -1693,6 +1897,18 @@ function abrirFicha(id){
   condicionais();
   renderDocs();
   $('mFicha').classList.add('aberto');
+  // carga leve: os anexos vieram só como contagem — busca a lista completa agora
+  if(fichaAtual && typeof fichaAtual.DOC_CTPS==='number'){
+    const idFicha = fichaAtual.ID;
+    apiPost({action:'obterAtendimento',id:idFicha}).then(r=>{
+      if(r.ok && fichaAtual && fichaAtual.ID===idFicha){
+        const idx = registros.findIndex(x=>x.ID===idFicha);
+        if(idx>=0){registros[idx]=r.registro;fichaAtual=registros[idx];}
+        else fichaAtual=r.registro;
+        renderDocs();
+      }
+    }).catch(()=>{});
+  }
   // o responsável abriu o novo atendimento: a sinalização é retirada
   if(fichaAtual && String(fichaAtual.NOVO||'')==='SIM' && usuario && normaliza(fichaAtual.RESPONSAVEL)===normaliza(usuario.nome)){
     fichaAtual.NOVO='';
@@ -1725,6 +1941,7 @@ async function salvarFicha(){
     OBSERVACOES: $('f_OBSERVACOES').value.trim(),
     STATUS: $('f_STATUS').value,
     ORIGEM: $('f_ORIGEM').value,
+    AREA: $('f_AREA').value,
     PRIORIDADE: $('f_PRIORIDADE').value,
     INDICACAO: $('f_INDICACAO').value.trim(),
     RETORNO_DIA_HORARIO: $('f_RETORNO_DIA_HORARIO').value.trim()
@@ -1820,8 +2037,15 @@ function renderDocs(){
   $('avisoSalvar').style.display = tem?'none':'block';
   $('listaDocs').style.display = tem?'block':'none';
   if(!tem) return;
+  const carregandoDocs = typeof fichaAtual.DOC_CTPS==='number';
   const linha = ([col,titulo])=>{
-    let lista=[]; try{lista=JSON.parse(fichaAtual[col]||'[]')}catch(e){}
+    let lista=[];
+    if(typeof fichaAtual[col]==='number'){
+      const qt=fichaAtual[col];
+      return `<div class="doc-linha"><div class="titulo">${titulo}${qt?` <span class="docs-chip">${qt}</span>`:''}</div>
+        <div class="arquivos"><span style="font-size:11.5px;color:var(--cinza)">${qt?('Carregando '+qt+' anexo(s)…'):'Carregando…'}</span></div></div>`;
+    }
+    try{lista=JSON.parse(fichaAtual[col]||'[]')}catch(e){}
     return `<div class="doc-linha">
       <div class="titulo">${titulo}${lista.length?` <span class="docs-chip" style="cursor:pointer" onclick="abrirDocsCol('${col}')" title="${lista.length} documento(s) anexado(s) — clique para abrir">${lista.length}</span>`:''}</div>
       <div class="arquivos">
@@ -1918,7 +2142,9 @@ function docsTitulo(r){
   // lista dos anexos do cliente, para o balão do botão Baixar docs
   const partes=[];
   [...DOCS_OBRIG,...DOCS_OPC,['DOC_OUTROS','Outros documentos']].forEach(([c,t])=>{
-    let l=[];try{l=JSON.parse(r[c]||'[]')}catch(e){}
+    const v=r[c];
+    if(typeof v==='number'){ if(v>0)partes.push(t+' ('+v+')'); return; } // carga leve: categorias e quantidades
+    let l=[];try{l=JSON.parse(v||'[]')}catch(e){}
     if(l.length)partes.push(t+' ('+l.length+'): '+l.map(d=>d.nome).join(', '));
   });
   return partes.length?('DOCUMENTOS ANEXADOS:\n\u2022 '+partes.join('\n\u2022 ')+'\n\nClique para baixar tudo em ZIP'):'Nenhum documento anexado';
@@ -2047,10 +2273,26 @@ async function confMudaStatus(id,sel){
   }
   $('confPend_'+id).style.display='none';
   const r = registros.find(x=>x.ID===id);
+  const campoQuem = $('confResp_'+id);
+  const quem = ((campoQuem?campoQuem.value:'')||String((r&&r.CONF_RESP)||'')).trim().toUpperCase();
+  if(valor && !quem){
+    toast('Informe quem conferiu no campo "Conferido por"');
+    sel.value = r?(r.CONF_STATUS||''):'';
+    if(campoQuem)campoQuem.focus();
+    return;
+  }
   loading(true,'Salvando…');
-  const resp = await postHist({ID:id,CONF_STATUS:valor,CONF_OBS:''},valor?('Conferência: '+valor):'Conferência limpa','CONFERÊNCIA');
+  const resp = await postHist({ID:id,CONF_STATUS:valor,CONF_OBS:'',CONF_RESP:quem},valor?('Conferência: '+valor+(quem?(' — conferido por '+quem):'')):'Conferência limpa','CONFERÊNCIA');
   loading(false);
-  if(resp.ok){if(r){r.CONF_STATUS=valor;r.CONF_OBS=''}renderizar();toast(valor?('Conferência: '+valor):'Conferência limpa')}
+  if(resp.ok){
+    if(r){
+      r.CONF_STATUS=valor;r.CONF_OBS='';r.CONF_RESP=quem;
+      if(valor && !String(r.CONF_DATA||'').trim())r.CONF_DATA=fmtData(new Date());
+      // quem conferiu já entra como responsável pela inicial (se ainda não houver um)
+      if(normaliza(valor)==='DOCUMENTACAO OK' && quem && !String(r.INICIAL_RESP||'').trim())r.INICIAL_RESP=quem;
+    }
+    renderizar();toast(valor?('Conferência: '+valor):'Conferência limpa');
+  }
   else toast('Erro: '+resp.erro);
 }
 
@@ -2059,11 +2301,16 @@ async function confirmarPendencia(id){
   const obs = $('confObs_'+id).value.trim();
   if(!obs){toast('Descreva a pendência de documentos');return}
   if(!confirm('Confirmar a pendência? A pasta voltará para a aba Atendimentos com o status PENDENTE DE DOCUMENTO.'))return;
+  const campoQuem = $('confResp_'+id);
+  const quem = ((campoQuem?campoQuem.value:'')||String((r&&r.CONF_RESP)||'')).trim().toUpperCase();
   loading(true,'Salvando…');
-  const resp = await postHist({ID:id,CONF_STATUS:'PENDÊNCIA DE DOCUMENTOS',CONF_OBS:obs,STATUS:'FECHOU (PENDENTE DE DOCS)'},'Conferência: PENDÊNCIA DE DOCUMENTOS — devolvido para Atendimentos','CONFERÊNCIA');
+  const resp = await postHist({ID:id,CONF_STATUS:'PENDÊNCIA DE DOCUMENTOS',CONF_OBS:obs,STATUS:'FECHOU (PENDENTE DE DOCS)',CONF_RESP:quem},'Conferência: PENDÊNCIA DE DOCUMENTOS — devolvido para Atendimentos','CONFERÊNCIA');
   loading(false);
   if(resp.ok){
-    if(r){r.CONF_STATUS='PENDÊNCIA DE DOCUMENTOS';r.CONF_OBS=obs;r.STATUS='FECHOU (PENDENTE DE DOCS)'}
+    if(r){
+      r.CONF_STATUS='PENDÊNCIA DE DOCUMENTOS';r.CONF_OBS=obs;r.STATUS='FECHOU (PENDENTE DE DOCS)';r.CONF_RESP=quem;
+      if(!String(r.CONF_DATA||'').trim())r.CONF_DATA=fmtData(new Date());
+    }
     renderizar();
     toast('Pasta devolvida para Atendimentos como PENDENTE DE DOCUMENTO');
   }else toast('Erro: '+resp.erro);
@@ -2273,9 +2520,11 @@ async function apSalvar(id){
   const resp = await postAbertura(reg,acaoMov);
   loading(false);
   if(resp.ok){
-    Object.assign(r,reg);renderizar();
+    Object.assign(r,reg);
+    if(resp.confResp){r.CONF_RESP=resp.confResp} // conferente atribuída pelo rodízio automático
+    renderizar();
     if(normaliza(reg.DOC_SITUACAO)==='DOCUMENTACAO OK' && reg.PASTA_CPJ){
-      toast('Pasta '+reg.PASTA_CPJ+' aberta e movida para Pastas abertas');
+      toast('Pasta '+reg.PASTA_CPJ+' aberta — conferência distribuída para '+(resp.confResp||'a conferente da vez'));
     }else if(faltandoDoc){
       toast('Devolvido para Atendimentos como FECHOU (PENDENTE DE DOCS)');
     }else{
@@ -3608,7 +3857,7 @@ function aplicarLogin(semCarregar){
   $('loginSenha').value='';
   aplicarPermissoesUI();
   $('agAdvSel').innerHTML='';
-  const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+  const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
   trocarAba(primeira);
   if(!semCarregar)carregar();
 }
@@ -3626,7 +3875,7 @@ async function sessaoCompleta(silencioso){
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
       if(!ativa || !podeAba(ativa.dataset.aba)){
-        const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+        const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
         trocarAba(primeira);
       }
       aplicarDados(r);
@@ -3661,7 +3910,7 @@ async function revalidarSessao(){
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
       if(!ativa || !podeAba(ativa.dataset.aba)){
-        const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento'].find(podeAba) || 'atendimentos';
+        const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
         trocarAba(primeira);
       }
       renderizar(); renderAgendamentos(); renderLeads();
@@ -3722,6 +3971,7 @@ function renderUsuarios(){
         <label><input type="checkbox" id="uConf_${i}" ${abas.includes('conferencia')?'checked':''}> Conferência</label>
         <label><input type="checkbox" id="uInic_${i}" ${abas.includes('iniciais')?'checked':''}> Iniciais</label>
         <label><input type="checkbox" id="uAjuiz_${i}" ${abas.includes('ajuizamento')?'checked':''}> Ajuizamento</label>
+        <label><input type="checkbox" id="uResumo_${i}" ${abas.includes('resumo')?'checked':''}> Resumo</label>
       </span>
       <button class="btn btn-mini btn-borda" onclick="salvarUsuario(${i})">Salvar</button>
       <button class="btn btn-mini btn-borda" onclick="redistribuirDeUsuario(${i})" title="Envia os atendimentos EM ANDAMENTO deste usuário para quem recebe leads (status zerado); os finalizados ficam com ele">Redistribuir leads</button>
@@ -3730,7 +3980,7 @@ function renderUsuarios(){
   }).join('') || '<div style="font-size:12.5px;color:var(--cinza);margin-bottom:8px">Nenhum usuário cadastrado ainda.</div>';
 }
 
-function abasMarcadas(atendId,abertId,inicId,ajuizId,agendId,agendaId,confId,leadId){
+function abasMarcadas(atendId,abertId,inicId,ajuizId,agendId,agendaId,confId,leadId,resumoId){
   const a=[];
   const mc = id=>{const el=$(id);return !!(el&&el.checked)};
   if(mc(leadId))a.push('lead');
@@ -3741,13 +3991,14 @@ function abasMarcadas(atendId,abertId,inicId,ajuizId,agendId,agendaId,confId,lea
   if(mc(confId))a.push('conferencia');
   if(mc(inicId))a.push('iniciais');
   if(mc(ajuizId))a.push('ajuizamento');
+  if(mc(resumoId))a.push('resumo');
   return a.join(',');
 }
 
 async function adicionarUsuario(){
   const nome=$('novoNome').value.trim(), senha=$('novaSenha').value.trim();
   const praca=[...document.querySelectorAll('.novaPraca:checked')].map(c=>c.value).join(',');
-  const abas=abasMarcadas('novoAtend','novoAbert','novoInic','novoAjuiz','novoAgend','novoAgenda','novoConf','novoLead');
+  const abas=abasMarcadas('novoAtend','novoAbert','novoInic','novoAjuiz','novoAgend','novoAgenda','novoConf','novoLead','novoResumo');
   if(!nome||!senha){toast('Informe nome e senha');return}
   // praça só é exigida de quem recebe leads
   if($('novoRecebe').checked && !praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
@@ -3762,7 +4013,7 @@ async function adicionarUsuario(){
 async function salvarUsuario(i){
   const nome=$('uNome_'+i).value.trim(), senha=$('uSenha_'+i).value.trim();
   const praca=[...document.querySelectorAll('.uPraca_'+i+':checked')].map(c=>c.value).join(',');
-  const abas=abasMarcadas('uAtend_'+i,'uAbert_'+i,'uInic_'+i,'uAjuiz_'+i,'uAgend_'+i,'uAgenda_'+i,'uConf_'+i,'uLead_'+i);
+  const abas=abasMarcadas('uAtend_'+i,'uAbert_'+i,'uInic_'+i,'uAjuiz_'+i,'uAgend_'+i,'uAgenda_'+i,'uConf_'+i,'uLead_'+i,'uResumo_'+i);
   if(!nome||!senha){toast('Informe nome e senha');return}
   // praça só é exigida de quem recebe leads
   if($('uRecebe_'+i).checked && !praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
