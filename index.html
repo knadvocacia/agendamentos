@@ -1214,18 +1214,40 @@ async function desGzip(b64){
 }
 async function apiPost(payload){
   const pesada = payload.action==='carregarTudo' || payload.action==='loginCompleto';
-  if(pesada && PODE_GZ) payload.gz = 1; // avisa o servidor que sabemos descompactar
+  if(pesada && PODE_GZ && !payload.semGz) payload.gz = 1; // avisa o servidor que sabemos descompactar
   const t0 = pesada ? performance.now() : 0;
-  const resp = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
-  let j = await resp.json();
+  let resp;
+  try{
+    resp = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  }catch(eRede){
+    console.error('[api] falha de rede em '+payload.action, eRede);
+    throw eRede;
+  }
+  const texto = await resp.text();
+  let j;
+  try{ j = JSON.parse(texto); }
+  catch(eJson){
+    // o Apps Script devolveu uma página (erro/autorização) em vez de JSON:
+    // o começo dela no console diz exatamente o que aconteceu no servidor
+    console.error('[api] resposta não-JSON em '+payload.action+' (HTTP '+resp.status+'): '+texto.slice(0,400));
+    throw eJson;
+  }
   if(j && j.gz){
     const info = j;
-    const dados = await desGzip(j.gz);
+    let dados;
+    try{ dados = await desGzip(j.gz); }
+    catch(eGz){
+      // navegador não conseguiu descompactar: refaz o pedido sem compactação
+      console.error('[carga] falha ao descompactar — refazendo sem compactação', eGz);
+      const p2 = Object.assign({}, payload, {semGz:1});
+      delete p2.gz;
+      return apiPost(p2);
+    }
     j = Object.assign({}, info, dados); // mantém os campos próprios da resposta (ex.: login) + a carga
     delete j.gz;
     if(pesada) console.log('[carga] total '+Math.round(performance.now()-t0)+' ms · servidor '+(info.tMs!=null?info.tMs+' ms':'?')+(info.cacheSrv?' (do cache)':' (montou agora)')+' · baixados '+(info.kbGz||'?')+' KB (originais: '+(info.kbOrig||'?')+' KB) · '+(dados.vSrv||''));
   }else if(pesada){
-    console.log('[carga] '+Math.round(performance.now()-t0)+' ms (sem compactação — implantação antiga do Code.gs?)');
+    console.log('[carga] '+Math.round(performance.now()-t0)+' ms (sem compactação'+(payload.semGz?' — compactação desligada neste pedido':' — implantação antiga do Code.gs?')+')');
   }
   return j;
 }
