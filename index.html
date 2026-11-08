@@ -1272,7 +1272,7 @@ async function sincronizar(silencioso){
       aplicarDados(r);
       if(!silencioso) toast('Dados sincronizados — tudo o que foi salvo em qualquer computador está na tela');
     }else if(!silencioso){toast('Erro ao sincronizar: '+r.erro)}
-  }catch(e){if(!silencioso)toast('Falha de conexão ao sincronizar')}
+  }catch(e){console.error('[sincronizar]',e);if(!silencioso)toast('Falha de conexão ao sincronizar')}
   if(!silencioso) loading(false);
   syncRodando = false;
 }
@@ -1300,7 +1300,7 @@ function usarCacheLocal(){
     const el=$('ultimaSync');
     if(el) el.textContent = 'Dados de '+new Date(c.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · atualizando…';
     return true;
-  }catch(e){return false}
+  }catch(e){console.error('[cacheLocal]',e);return false}
 }
 
 let _novosAnterior = null;
@@ -1365,7 +1365,7 @@ async function carregar(){
       if(rl.ok){leadRegistros=rl.registros}
       toast('Atualize o Code.gs (Nova versão) para o carregamento rápido');
     }else{toast('Erro: '+r.erro)}
-  }catch(e){toast('Falha de conexão com o Apps Script')}
+  }catch(e){console.error('[carregar]',e);toast('Falha de conexão com o Apps Script')}
   loading(false);
   renderizar();
   renderAgendamentos();
@@ -3259,7 +3259,8 @@ function renderAgendamentos(){
       </td>
     </tr>`}).join('');
   $('vazioAgend').style.display = visiveis.length?'none':'block';
-  $('contAgend').textContent = agRegistros.filter(r=>normaliza(r.STATUS)!=='AGENDADO').length; // passivo: não agendados
+  const elContAg = $('contAgend'); // o botão da aba Agendamentos foi removido do topo
+  if(elContAg) elContAg.textContent = agRegistros.filter(r=>normaliza(r.STATUS)!=='AGENDADO').length;
 }
 function limparFiltrosAg(){
   document.querySelectorAll('[data-fg]').forEach(el=>el.value='');
