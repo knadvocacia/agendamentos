@@ -882,7 +882,7 @@ td.acao{white-space:nowrap}
         <tbody id="corpoResResp"></tbody>
       </table>
       <div class="vazio" id="vazioResResp" style="display:none">Nenhum lead no per&iacute;odo.</div>
-      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = status FECHOU (inclui pendente de docs) &middot; N&Atilde;O FECHOU = sem interesse, sem direito, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
+      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = status FECHOU (inclui pendente de docs) &middot; N&Atilde;O FECHOU = sem interesse, sem direito, desligou na cara, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
     </div>
     <div class="tabela-wrap" id="boxResAdv">
       <div class="res-titulo">Confer&ecirc;ncias e iniciais por advogada</div>
@@ -1113,6 +1113,7 @@ const STATUS_CORES = {
   'PENDENTE DE DOCUMENTO':'amarelo',
   'SEM INTERESSE':'vermelho',
   'SEM DIREITO':'vermelho',
+  'DESLIGOU NA CARA':'vermelho',
   'TENTOU LIGAR E ENVIOU MSG':'amarelo',
   'TENTOU LIGAR E NÃO ENVIOU MENSAGEM':'amarelo',
   'ATENDIMENTO WHATS':'azul',
@@ -1282,7 +1283,8 @@ function salvarCacheLocal(){
   try{
     localStorage.setItem('cacheDadosADV', JSON.stringify({
       t: Date.now(), atendimentos: registros, agendamentos: agRegistros,
-      leads: leadRegistros, estagiarios: estagiariosCache, responsaveis: responsaveisCache
+      leads: leadRegistros, estagiarios: estagiariosCache, responsaveis: responsaveisCache,
+      conferentes: conferentesServidor
     }));
   }catch(e){/* cache cheio/indisponível: segue sem */}
 }
@@ -1296,6 +1298,7 @@ function usarCacheLocal(){
     registros = c.atendimentos; agRegistros = c.agendamentos||[]; leadRegistros = c.leads||[];
     if(c.estagiarios) aplicarEstagiarios(c.estagiarios);
     if(c.responsaveis) aplicarResponsaveis(c.responsaveis);
+    if(c.conferentes) conferentesServidor = c.conferentes;
     renderizar(); renderAgendamentos(); renderLeads();
     const el=$('ultimaSync');
     if(el) el.textContent = 'Dados de '+new Date(c.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · atualizando…';
@@ -1342,6 +1345,7 @@ function aplicarDados(r){
   if(r.estagiarios){aplicarEstagiarios(r.estagiarios)}
   else{carregarEstagiarios()} // implantação antiga: busca em chamada separada
   if(r.responsaveis)aplicarResponsaveis(r.responsaveis);
+  if(r.conferentes)conferentesServidor = r.conferentes;
   marcarSync();
   salvarCacheLocal();
   avisarNovos();
@@ -1782,13 +1786,14 @@ function renderizar(){
 
 /* ===================== aba RESUMO ===================== */
 let conferentesExtras = [];   // nomes adicionados pelo botão + (até serem gravados num registro)
+let conferentesServidor = []; // nomes fixos do rodízio, enviados pelo servidor
 let resumoIniciado = false;
 const RES_SEM_CONTATO = ['TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
-const RES_NAO_FECHOU  = ['SEM INTERESSE','SEM DIREITO','PRESCRITO','JA TEM ACAO'];
+const RES_NAO_FECHOU  = ['SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','PRESCRITO','JA TEM ACAO'];
 const RES_AGENDOU     = ['ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
 function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'}
 function listaConferentes(){
-  const nomes = new Set(conferentesExtras);
+  const nomes = new Set(conferentesServidor.concat(conferentesExtras));
   registros.forEach(r=>{
     if(String(r.CONF_RESP||'').trim())nomes.add(String(r.CONF_RESP).trim());
     if(String(r.INICIAL_RESP||'').trim())nomes.add(String(r.INICIAL_RESP).trim());
