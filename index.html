@@ -874,7 +874,7 @@ td.acao{white-space:nowrap}
     <div class="res-card rc-amarelo"><b id="resSemContato">0</b><span>N&atilde;o conseguiu contato</span></div>
     <div class="res-card rc-vermelho"><b id="resNaoFechou">0</b><span>N&atilde;o fechou</span></div>
   </div>
-  <div style="font-size:11px;color:var(--cinza);margin:-6px 0 10px">Os % s&atilde;o sobre os leads com desfecho no per&iacute;odo (fecharam + n&atilde;o conseguiu contato + n&atilde;o fechou).</div>
+  <div style="font-size:11px;color:var(--cinza);margin:-6px 0 10px">Leads no per&iacute;odo = fecharam + n&atilde;o conseguiu contato + n&atilde;o fechou (e os % s&atilde;o sobre essa soma). Ficam fora: Atendimento Whats/Voz, Em an&aacute;lise, Retornar, Pendente, Marcado outro dia e sem status.</div>
   <div id="resFila" style="font-size:12.5px;color:var(--cinza);margin:2px 0 10px"></div>
   <div class="res-duas">
     <div class="tabela-wrap">
@@ -884,7 +884,7 @@ td.acao{white-space:nowrap}
         <tbody id="corpoResResp"></tbody>
       </table>
       <div class="vazio" id="vazioResResp" style="display:none">Nenhum lead no per&iacute;odo.</div>
-      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = status FECHOU (inclui pendente de docs) &middot; N&Atilde;O FECHOU = sem interesse, sem direito, desligou na cara, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
+      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = desligou na cara, tentou ligar, telefone errado ou indispon&iacute;vel.</div>
     </div>
     <div class="tabela-wrap">
       <div class="res-titulo">Fechados faltando documenta&ccedil;&atilde;o — por respons&aacute;vel</div>
@@ -893,7 +893,7 @@ td.acao{white-space:nowrap}
         <tbody id="corpoResFalt"></tbody>
       </table>
       <div class="vazio" id="vazioResFalt" style="display:none">Nenhum fechado com documenta&ccedil;&atilde;o pendente no per&iacute;odo.</div>
-      <div class="res-legenda">Clientes FECHADOS do per&iacute;odo cuja documenta&ccedil;&atilde;o ainda n&atilde;o est&aacute; completa (status FECHOU com FALTANDO DOCUMENTA&Ccedil;&Atilde;O ou FECHOU (PENDENTE DE DOCS)) — a lista de cobran&ccedil;a de cada respons&aacute;vel.</div>
+      <div class="res-legenda">Clientes FECHADOS do per&iacute;odo cuja documenta&ccedil;&atilde;o ainda n&atilde;o est&aacute; completa (FECHOU com FALTANDO DOCUMENTA&Ccedil;&Atilde;O, FECHOU (PENDENTE DE DOCS) ou PENDENTE DE DOCUMENTO) — a lista de cobran&ccedil;a de cada respons&aacute;vel.</div>
     </div>
     <div class="tabela-wrap" id="boxResAdv">
       <div class="res-titulo">Confer&ecirc;ncias e iniciais por advogada</div>
@@ -1799,10 +1799,15 @@ function renderizar(){
 let conferentesExtras = [];   // nomes adicionados pelo botão + (até serem gravados num registro)
 let conferentesServidor = []; // nomes fixos do rodízio, enviados pelo servidor
 let resumoIniciado = false;
-const RES_SEM_CONTATO = ['TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
-const RES_NAO_FECHOU  = ['SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','PRESCRITO','JA TEM ACAO'];
+// mapeamento definido pela gestão (v32.1):
+// FECHOU = fechou, fechou (pendente de docs), pendente de documento
+// NÃO CONSEGUIU CONTATO = desligou na cara, tentou ligar (msg/sem msg), telefone errado, indisponível
+// NÃO FECHOU = pendente assinatura, sem interesse, sem direito, prescrito, já tem ação
+// FORA DO RESUMO = atendimento whats/voz, em análise, retornar, pendente, marcado outro dia e sem status
+const RES_SEM_CONTATO = ['DESLIGOU NA CARA','TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
+const RES_NAO_FECHOU  = ['PENDENTE ASSINATURA','SEM INTERESSE','SEM DIREITO','PRESCRITO','JA TEM ACAO'];
 const RES_AGENDOU     = ['ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
-function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'}
+function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'||st==='PENDENTE DE DOCUMENTO'}
 function listaConferentes(){
   const mapa = new Map(); // chave normalizada -> grafia preferida (as do rodízio primeiro)
   const poe = n => {n=String(n||'').trim();if(!n)return;const c=normaliza(n);if(!mapa.has(c))mapa.set(c,n)};
@@ -1867,15 +1872,14 @@ function renderResumo(){
   const minha = veSoProprios();
   const base = (minha ? registros.filter(r=>normaliza(r.RESPONSAVEL)===normaliza(usuario.nome)) : registros)
     .filter(r=>dentro(dataISO(r.DATA)));
-  let nFech=0,nSem=0,nNao=0,nVazio=0,nAnd=0;
+  let nFech=0,nSem=0,nNao=0;
   const porResp = {};
   base.forEach(r=>{
     const st = normaliza(r.STATUS);
     if(resFechou(st))nFech++;
-    else if(!st)nVazio++;
     else if(RES_SEM_CONTATO.includes(st))nSem++;
     else if(RES_NAO_FECHOU.includes(st))nNao++;
-    else nAnd++;
+    // demais status (em andamento) e sem status ficam FORA do resumo e do total
     const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
     const chave = normaliza(bruto); // mesma pessoa escrita diferente conta junto
     const o = porResp[chave]||(porResp[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),leads:0,ligou:0,agendou:0,fechou:0});
@@ -1884,8 +1888,8 @@ function renderResumo(){
     if(RES_AGENDOU.includes(st))o.agendou++;
     if(resFechou(st))o.fechou++;
   });
-  $('resTotal').textContent=base.length;
-  const comDesfecho = nFech+nSem+nNao; // sem status e em andamento ficam fora do %
+  const comDesfecho = nFech+nSem+nNao; // o total do resumo é só a soma das três categorias
+  $('resTotal').textContent=comDesfecho;
   const pctTot = n => comDesfecho ? Math.round(n*100/comDesfecho) : 0;
   const comPct = n => n+' <small>('+pctTot(n)+'%)</small>';
   $('resFechou').innerHTML=comPct(nFech);
@@ -1905,7 +1909,7 @@ function renderResumo(){
   const porFalt = {};
   base.forEach(r=>{
     const st = normaliza(r.STATUS);
-    const falt = st==='FECHOU (PENDENTE DE DOCS)' || (st==='FECHOU' && normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO');
+    const falt = st==='FECHOU (PENDENTE DE DOCS)' || st==='PENDENTE DE DOCUMENTO' || (st==='FECHOU' && normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO');
     if(!falt) return;
     const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
     const chave = normaliza(bruto);
