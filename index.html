@@ -718,7 +718,10 @@ td.acao{white-space:nowrap}
 <section class="painel" id="painel-conferencia">
   <div class="barra">
     <span style="color:var(--cinza);font-size:13px">Toda pasta aberta entra aqui já distribuída automaticamente entre as conferentes (rodízio) · <b style="color:var(--vermelho-tx)">PENDÊNCIA DE DOCUMENTOS</b> devolve a pasta para Atendimentos como PENDENTE DE DOCUMENTO.</span>
-    <div class="direita"><button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button></div>
+    <div class="direita">
+      <button class="btn btn-mini btn-principal master-so" style="display:none" onclick="dividirConferencias()" title="Divide entre as conferentes, em rodízio, todas as pendências sem nome (conferências aguardando e iniciais a elaborar) e unifica grafias (dra karla / DRA KARLA → DRA. KARLA)">&#9878; Dividir pendências</button>
+      <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
+    </div>
   </div>
   <div class="tabela-wrap">
     <table>
@@ -1793,12 +1796,12 @@ const RES_NAO_FECHOU  = ['SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','PRESC
 const RES_AGENDOU     = ['ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
 function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'}
 function listaConferentes(){
-  const nomes = new Set(conferentesServidor.concat(conferentesExtras));
-  registros.forEach(r=>{
-    if(String(r.CONF_RESP||'').trim())nomes.add(String(r.CONF_RESP).trim());
-    if(String(r.INICIAL_RESP||'').trim())nomes.add(String(r.INICIAL_RESP).trim());
-  });
-  return [...nomes].sort();
+  const mapa = new Map(); // chave normalizada -> grafia preferida (as do rodízio primeiro)
+  const poe = n => {n=String(n||'').trim();if(!n)return;const c=normaliza(n);if(!mapa.has(c))mapa.set(c,n)};
+  conferentesServidor.forEach(poe);
+  conferentesExtras.forEach(poe);
+  registros.forEach(r=>{poe(r.CONF_RESP);poe(r.INICIAL_RESP)});
+  return [...mapa.values()].sort();
 }
 function montarDlConferentes(){
   const dl=$('dlConferentes'); if(!dl)return;
@@ -1819,6 +1822,18 @@ function novoConferente(id){
   if(!conferentesExtras.includes(n))conferentesExtras.push(n);
   montarDlConferentes();
   if(id && $('confResp_'+id)){$('confResp_'+id).value=n;salvarConfResp(id)}
+}
+async function dividirConferencias(){
+  if(!usuario || !usuario.master) return;
+  const dupla = (conferentesServidor.length?conferentesServidor:['as conferentes']).join(' e ');
+  if(!confirm('Dividir entre '+dupla+' todas as pendências sem nome (conferências aguardando e iniciais a elaborar) e unificar as grafias dos nomes?'))return;
+  loading(true,'Dividindo pendências…');
+  const r = await apiPost({action:'organizarConferentes',senhaMaster:usuario.senha});
+  loading(false);
+  if(r.ok){
+    toast('Conferências atribuídas: '+r.confAtribuidas+' · Iniciais atribuídas: '+r.iniAtribuidas+' · Grafias unificadas: '+r.unificados);
+    await carregar();
+  }else toast('Erro: '+(r.erro||'não foi possível dividir'));
 }
 function pad2res(n){return String(n).padStart(2,'0')}
 function resPeriodo(tipo){
@@ -1853,8 +1868,9 @@ function renderResumo(){
     else if(RES_SEM_CONTATO.includes(st))nSem++;
     else if(RES_NAO_FECHOU.includes(st))nNao++;
     else nAnd++;
-    const nome = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
-    const o = porResp[nome]||(porResp[nome]={leads:0,ligou:0,agendou:0,fechou:0});
+    const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
+    const chave = normaliza(bruto); // mesma pessoa escrita diferente conta junto
+    const o = porResp[chave]||(porResp[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),leads:0,ligou:0,agendou:0,fechou:0});
     o.leads++;
     if(st)o.ligou++;
     if(RES_AGENDOU.includes(st))o.agendou++;
@@ -1875,25 +1891,26 @@ function renderResumo(){
   $('corpoResResp').innerHTML = nomes.map(n=>{
     const o=porResp[n];
     const pct = o.leads?Math.round(o.fechou*100/o.leads):0;
-    return `<tr><td><b>${esc(n)}</b></td><td>${o.leads}</td><td>${o.ligou}</td><td>${o.agendou}</td><td><b>${o.fechou}</b></td><td>${pct}%</td></tr>`;
+    return `<tr><td><b>${esc(o.nome)}</b></td><td>${o.leads}</td><td>${o.ligou}</td><td>${o.agendou}</td><td><b>${o.fechou}</b></td><td>${pct}%</td></tr>`;
   }).join('');
   $('vazioResResp').style.display = nomes.length?'none':'block';
   // conferências e iniciais por advogada — contadas pelas PRÓPRIAS datas (conferência / FEITO)
   const porAdv = {};
+  const advRef = chave => porAdv[chave]||(porAdv[chave]={nome:(conferentesServidor.find(x=>normaliza(x)===chave)||''),conf:0,ini:0});
   registros.forEach(r=>{
     const conf = String(r.CONF_RESP||'').trim();
     if(conf && String(r.CONF_STATUS||'').trim() && dentro(dataISO(r.CONF_DATA)||dataISO(r.DATA_ABERTURA))){
-      (porAdv[conf]||(porAdv[conf]={conf:0,ini:0})).conf++;
+      const o=advRef(normaliza(conf)); if(!o.nome)o.nome=conf; o.conf++;
     }
     const ini = String(r.INICIAL_RESP||'').trim();
     if(ini && normaliza(r.INICIAL_STATUS)==='FEITO' && dentro(dataISO(r.DATA_FEITO))){
-      (porAdv[ini]||(porAdv[ini]={conf:0,ini:0})).ini++;
+      const o=advRef(normaliza(ini)); if(!o.nome)o.nome=ini; o.ini++;
     }
   });
   const advs = Object.keys(porAdv).sort((a,b)=>(porAdv[b].conf+porAdv[b].ini)-(porAdv[a].conf+porAdv[a].ini));
   $('corpoResAdv').innerHTML = advs.map(n=>{
     const o=porAdv[n];
-    return `<tr><td><b>${esc(n)}</b></td><td>${o.conf}</td><td>${o.ini}</td></tr>`;
+    return `<tr><td><b>${esc(o.nome)}</b></td><td>${o.conf}</td><td>${o.ini}</td></tr>`;
   }).join('');
   $('vazioResAdv').style.display = advs.length?'none':'block';
   $('boxResAdv').style.display = minha?'none':'';
