@@ -126,8 +126,8 @@ tr.nomes th{top:0 !important}
 tbody td{padding:4px 8px;border-top:1px solid var(--linha);font-size:11.5px;vertical-align:middle;text-transform:uppercase}
 input:not([type=password]),select,textarea{text-transform:uppercase}
 /* estagiários não veem Horário nem Adv. Atendimento na aba Atendimentos */
-body.modo-estag #painel-atendimentos tr.nomes th:nth-child(10),
-body.modo-estag #painel-atendimentos tbody td:nth-child(10){display:none}
+body.modo-estag #painel-atendimentos tr.nomes th:nth-child(11),
+body.modo-estag #painel-atendimentos tbody td:nth-child(11){display:none}
 /* aba Atendimentos: linhas finas para ver muitos contatos de uma vez */
 #painel-atendimentos tbody td{padding:2px 6px;font-size:11.5px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 #painel-atendimentos tbody td .docs-chip{font-size:10px;padding:1px 6px}
@@ -604,6 +604,7 @@ td.acao{white-space:nowrap}
             <input type="date" id="fDataDe" title="De (data inicial)">
             <input type="date" id="fDataAte" title="Até (data final)">
           </th>
+          <th><input data-f="HORARIO" placeholder="Filtrar"></th>
           <th><select data-f="DOC_SITUACAO">
             <option value="">Todas</option>
             <option value="DOCUMENTAÇÃO OK">DOCUMENTAÇÃO OK</option>
@@ -623,7 +624,7 @@ td.acao{white-space:nowrap}
         </tr>
         <tr class="nomes">
           <th style="width:34px"><input type="checkbox" id="atendSelTodos" onclick="event.stopPropagation()" onchange="selTodosAtend(this.checked)" title="Selecionar todos os visíveis"></th>
-          <th>Data</th><th title="Situação da documentação (mesma da Abertura de Pasta)">Documentação</th><th>Status</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th>
+          <th>Data</th><th>Horário</th><th title="Situação da documentação (mesma da Abertura de Pasta)">Documentação</th><th>Status</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th>
           <th>Pasta</th><th>Adv. Atendimento</th><th>Data Saída</th>
           <th>Docs</th><th>Observações</th><th></th>
         </tr>
@@ -884,7 +885,7 @@ td.acao{white-space:nowrap}
         <tbody id="corpoResResp"></tbody>
       </table>
       <div class="vazio" id="vazioResResp" style="display:none">Nenhum lead no per&iacute;odo.</div>
-      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = desligou na cara, tentou ligar, telefone errado ou indispon&iacute;vel.</div>
+      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, desligou na cara, BO, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
     </div>
     <div class="tabela-wrap">
       <div class="res-titulo">Fechados faltando documenta&ccedil;&atilde;o — por respons&aacute;vel</div>
@@ -1125,6 +1126,7 @@ const STATUS_CORES = {
   'SEM INTERESSE':'vermelho',
   'SEM DIREITO':'vermelho',
   'DESLIGOU NA CARA':'vermelho',
+  'BO':'vermelho',
   'TENTOU LIGAR E ENVIOU MSG':'amarelo',
   'TENTOU LIGAR E NÃO ENVIOU MENSAGEM':'amarelo',
   'ATENDIMENTO WHATS':'azul',
@@ -1438,6 +1440,10 @@ function verAguardandoDocs(){
 async function salvarAtendLote(){
   const campos = {};
   if($('atl_DATA').value) campos.DATA = dataBR($('atl_DATA').value);
+  if(normaliza($('atl_STATUS').value)==='SEM INTERESSE'){
+    toast('SEM INTERESSE exige o MOTIVO nas Observações — lance pelo atendimento (ficha), não em lote');
+    return;
+  }
   if($('atl_STATUS').value) campos.STATUS = $('atl_STATUS').value;
   let destino = null;
   if($('atl_RESPONSAVEL').value.trim()){
@@ -1533,6 +1539,7 @@ function renderizar(){
     return `<tr class="st-${cor}" onclick="abrirFicha('${r.ID}')">
       <td style="text-align:center" onclick="event.stopPropagation()"><input type="checkbox" ${atendSel.has(r.ID)?'checked':''} onclick="event.stopPropagation()" onchange="toggleAtendSel('${r.ID}',this.checked)"></td>
       <td>${esc(dataBR(r.DATA))}</td>
+      <td>${esc(r.HORARIO||'')}</td>
       <td title="${esc(r.DOC_SITUACAO)||''}">${normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK'?'<span class="pill verde">DOC. OK</span>':(normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO'?'<span class="pill amarelo">FALTANDO DOC.</span>':'')}</td>
       <td title="${esc(r.STATUS)||''}"><span class="pill ${cor}">${esc(r.STATUS)||'—'}</span>${extra.length?'<div style="font-size:11px;margin-top:3px">'+extra.join(' · ')+'</div>':''}</td>
       <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b>${String(r.NOVO||'')==='SIM'?' <span class="docs-chip" title="Novo atendimento agendado para o responsável — some quando ele abrir a ficha" style="background:var(--azul-bg);color:var(--azul-tx);font-weight:700">&#128276; NOVO</span>':''}${String(r.PRIORIDADE||'')==='SIM'?' <span class="docs-chip" title="PRIORIDADE de abertura de pasta" style="background:var(--vermelho-bg);color:var(--vermelho-tx);font-weight:700">&#9873; PRIOR.</span>':''}${normaliza(r.ORIGEM)==='INDICACAO'?' <span class="docs-chip" title="Atendimento criado por indicação" style="background:var(--amarelo-bg);color:var(--amarelo-tx)">IND</span>':''}</td><td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
@@ -1804,8 +1811,8 @@ let resumoIniciado = false;
 // NÃO CONSEGUIU CONTATO = desligou na cara, tentou ligar (msg/sem msg), telefone errado, indisponível
 // NÃO FECHOU = pendente assinatura, sem interesse, sem direito, prescrito, já tem ação
 // FORA DO RESUMO = atendimento whats/voz, em análise, retornar, pendente, marcado outro dia e sem status
-const RES_SEM_CONTATO = ['DESLIGOU NA CARA','TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
-const RES_NAO_FECHOU  = ['PENDENTE ASSINATURA','SEM INTERESSE','SEM DIREITO','PRESCRITO','JA TEM ACAO'];
+const RES_SEM_CONTATO = ['TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
+const RES_NAO_FECHOU  = ['PENDENTE ASSINATURA','SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','BO','PRESCRITO','JA TEM ACAO'];
 const RES_AGENDOU     = ['ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
 function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'||st==='PENDENTE DE DOCUMENTO'}
 function listaConferentes(){
@@ -1973,7 +1980,7 @@ function abrirFicha(id){
       }
     });
   // o campo Horário saiu da aba Atendimentos (o dado antigo é preservado)
-  $('f_HORARIO').closest('.campo').style.display='none';
+  // campo Horário de volta à ficha (horário agendado do atendimento)
   const estagF = souEstagiario();
   if(!fichaAtual){
     // atendimento novo criado manualmente = indicação
