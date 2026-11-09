@@ -872,10 +872,9 @@ td.acao{white-space:nowrap}
     <div class="res-card"><b id="resTotal">0</b><span>Leads no per&iacute;odo</span></div>
     <div class="res-card rc-verde"><b id="resFechou">0</b><span>Fecharam</span></div>
     <div class="res-card rc-amarelo"><b id="resSemContato">0</b><span>N&atilde;o conseguiu contato</span></div>
-    <div class="res-card rc-cinza"><b id="resNaoTrab">0</b><span>Ainda n&atilde;o trabalhado (sem status)</span></div>
     <div class="res-card rc-vermelho"><b id="resNaoFechou">0</b><span>N&atilde;o fechou</span></div>
-    <div class="res-card rc-azul"><b id="resAndamento">0</b><span>Em andamento</span></div>
   </div>
+  <div style="font-size:11px;color:var(--cinza);margin:-6px 0 10px">Os % s&atilde;o sobre os leads com desfecho no per&iacute;odo (fecharam + n&atilde;o conseguiu contato + n&atilde;o fechou).</div>
   <div id="resFila" style="font-size:12.5px;color:var(--cinza);margin:2px 0 10px"></div>
   <div class="res-duas">
     <div class="tabela-wrap">
@@ -886,6 +885,15 @@ td.acao{white-space:nowrap}
       </table>
       <div class="vazio" id="vazioResResp" style="display:none">Nenhum lead no per&iacute;odo.</div>
       <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = status FECHOU (inclui pendente de docs) &middot; N&Atilde;O FECHOU = sem interesse, sem direito, desligou na cara, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
+    </div>
+    <div class="tabela-wrap">
+      <div class="res-titulo">Fechados faltando documenta&ccedil;&atilde;o — por respons&aacute;vel</div>
+      <table>
+        <thead><tr class="nomes"><th>Respons&aacute;vel</th><th>Faltando docs</th></tr></thead>
+        <tbody id="corpoResFalt"></tbody>
+      </table>
+      <div class="vazio" id="vazioResFalt" style="display:none">Nenhum fechado com documenta&ccedil;&atilde;o pendente no per&iacute;odo.</div>
+      <div class="res-legenda">Clientes FECHADOS do per&iacute;odo cuja documenta&ccedil;&atilde;o ainda n&atilde;o est&aacute; completa (status FECHOU com FALTANDO DOCUMENTA&Ccedil;&Atilde;O ou FECHOU (PENDENTE DE DOCS)) — a lista de cobran&ccedil;a de cada respons&aacute;vel.</div>
     </div>
     <div class="tabela-wrap" id="boxResAdv">
       <div class="res-titulo">Confer&ecirc;ncias e iniciais por advogada</div>
@@ -1877,13 +1885,12 @@ function renderResumo(){
     if(resFechou(st))o.fechou++;
   });
   $('resTotal').textContent=base.length;
-  const pctTot = n => base.length ? Math.round(n*100/base.length) : 0;
-  const comPct = n => n+' <small>('+pctTot(n)+'%)</small>'; // % sobre o total de leads do período
+  const comDesfecho = nFech+nSem+nNao; // sem status e em andamento ficam fora do %
+  const pctTot = n => comDesfecho ? Math.round(n*100/comDesfecho) : 0;
+  const comPct = n => n+' <small>('+pctTot(n)+'%)</small>';
   $('resFechou').innerHTML=comPct(nFech);
   $('resSemContato').innerHTML=comPct(nSem);
-  $('resNaoTrab').innerHTML=comPct(nVazio);
   $('resNaoFechou').innerHTML=comPct(nNao);
-  $('resAndamento').innerHTML=comPct(nAnd);
   // fila da aba Lead ainda não distribuída (não depende do período)
   const fila = (typeof leadRegistros!=='undefined'?leadRegistros:[]).filter(r=>!leadEnviado(r)).length;
   $('resFila').textContent = minha ? '' : ('Além desses, há '+fila+' lead(s) na fila da aba Lead, ainda não distribuídos.');
@@ -1894,6 +1901,23 @@ function renderResumo(){
     return `<tr><td><b>${esc(o.nome)}</b></td><td>${o.leads}</td><td>${o.ligou}</td><td>${o.agendou}</td><td><b>${o.fechou}</b></td><td>${pct}%</td></tr>`;
   }).join('');
   $('vazioResResp').style.display = nomes.length?'none':'block';
+  // fechados faltando documentação, por responsável (lista de cobrança)
+  const porFalt = {};
+  base.forEach(r=>{
+    const st = normaliza(r.STATUS);
+    const falt = st==='FECHOU (PENDENTE DE DOCS)' || (st==='FECHOU' && normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO');
+    if(!falt) return;
+    const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
+    const chave = normaliza(bruto);
+    const o = porFalt[chave]||(porFalt[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),qtd:0});
+    o.qtd++;
+  });
+  const faltNomes = Object.keys(porFalt).sort((a,b)=>porFalt[b].qtd-porFalt[a].qtd);
+  $('corpoResFalt').innerHTML = faltNomes.map(n=>{
+    const o=porFalt[n];
+    return `<tr><td><b>${esc(o.nome)}</b></td><td><b style="color:var(--vermelho-tx)">${o.qtd}</b></td></tr>`;
+  }).join('');
+  $('vazioResFalt').style.display = faltNomes.length?'none':'block';
   // conferências e iniciais por advogada — contadas pelas PRÓPRIAS datas (conferência / FEITO)
   const porAdv = {};
   const advRef = chave => porAdv[chave]||(porAdv[chave]={nome:(conferentesServidor.find(x=>normaliza(x)===chave)||''),conf:0,ini:0});
