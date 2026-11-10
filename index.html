@@ -733,7 +733,7 @@ td.acao{white-space:nowrap}
   <div class="barra">
     <span style="color:var(--cinza);font-size:13px">Toda pasta aberta entra aqui já distribuída entre as conferentes — encaminhamentos diretos definidos em &#9881; Configurações; os demais em rodízio alternado · <b style="color:var(--vermelho-tx)">PENDÊNCIA DE DOCUMENTOS</b> devolve a pasta para Atendimentos como PENDENTE DE DOCUMENTO.</span>
     <div class="direita">
-      <button class="btn btn-mini btn-principal master-so" style="display:none" onclick="dividirConferencias()" title="Divide entre as conferentes, em rodízio, todas as pendências sem nome (conferências aguardando e iniciais a elaborar) e unifica grafias (dra karla / DRA KARLA → DRA. KARLA)">&#9878; Dividir pendências</button>
+      <button class="btn btn-mini btn-principal master-so" style="display:none" onclick="dividirConferencias()" title="Divide entre as conferentes, em rodízio, todas as pendências sem nome (conferências aguardando e iniciais a elaborar) e unifica grafias (dra carla / DRA KARLA / CARLA → DRA. CARLA)">&#9878; Dividir pendências</button>
       <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
     </div>
   </div>
@@ -2026,11 +2026,36 @@ function cfgAdd(de,para){
     <button class="btn btn-mini btn-perigo" onclick="this.parentElement.remove()" title="Remover esta regra">&times;</button>`;
   $('cfgLinhas').appendChild(div);
 }
+function usuarioDoSistema(v){
+  // resolve o que foi digitado para o nome EXATO do cadastro ("RAFAEL" → "DR. RAFAEL");
+  // devolve null se não houver usuário correspondente
+  const alvo = normaliza(v).replace(/\./g,' ').replace(/\s+/g,' ').trim();
+  if(!alvo) return null;
+  let exato=null; const contem=[];
+  responsaveisCache.forEach(n=>{
+    const nn = normaliza(n).replace(/\./g,' ').replace(/\s+/g,' ').trim();
+    if(nn===alvo) exato=n;
+    else if((' '+nn+' ').includes(' '+alvo+' ')) contem.push(n);
+  });
+  if(exato) return exato;
+  if(contem.length===1) return contem[0];
+  return null;
+}
 async function salvarConfig(){
-  const regras=[...document.querySelectorAll('#cfgLinhas .cfg-linha')].map(l=>({
+  const brutas=[...document.querySelectorAll('#cfgLinhas .cfg-linha')].map(l=>({
     de:l.querySelector('.cfgDe').value.trim().toUpperCase(),
     para:l.querySelector('.cfgPara').value.trim().toUpperCase()
-  })).filter(x=>x.de && x.para);
+  })).filter(x=>x.de || x.para);
+  const regras=[];
+  for(const x of brutas){
+    if(!x.de || !x.para){toast('Preencha os dois lados da regra (ou remova a linha)');return}
+    if(responsaveisCache.length){
+      const de2=usuarioDoSistema(x.de), para2=usuarioDoSistema(x.para);
+      if(!de2){toast('"'+x.de+'" não é um usuário cadastrado — escolha um nome da lista');return}
+      if(!para2){toast('"'+x.para+'" não é um usuário cadastrado — escolha um nome da lista');return}
+      regras.push({de:de2,para:para2});
+    }else regras.push(x);
+  }
   loading(true,'Salvando regras…');
   const r = await apiPost({action:'salvarConfigConf',regras,senhaMaster:usuario.senha});
   loading(false);
