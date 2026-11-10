@@ -82,6 +82,20 @@ main{padding:18px 26px;max-width:1600px;margin:0 auto}
 #painel-resumo thead th:first-child,#painel-resumo tbody td:first-child{text-align:left;width:40%}
 #painel-resumo tbody td{padding:7px 8px;font-size:12px}
 .res-legenda{font-size:11px;color:var(--cinza);padding:8px 12px 10px;line-height:1.5}
+.cfg-linha{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.cfg-linha input{flex:1;min-width:0}
+.rs-wrap{display:flex;align-items:stretch}
+.rs-esq{width:42%;max-height:430px;overflow:auto;border-right:1px solid var(--linha)}
+.rs-esq button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;border:0;background:none;padding:9px 12px;font:inherit;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--linha)}
+.rs-esq button:hover{background:var(--creme,#f5f2ea)}
+.rs-esq button.ativo{background:var(--navy);color:#f0ece1;font-weight:700}
+.rs-esq button .docs-chip{flex-shrink:0}
+.rs-dir{flex:1;padding:12px 16px;min-width:0}
+.rs-dir h3{margin:0 0 2px;font-size:14.5px;color:var(--navy)}
+.rs-per{display:inline-block;font-size:11px;font-weight:700;background:var(--azul-bg);color:var(--azul-tx);border-radius:12px;padding:3px 10px;margin:4px 0 10px}
+.rs-linha{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--linha);font-size:13px}
+.rs-linha b{font-size:14px}
+.rs-total{display:flex;justify-content:space-between;padding:10px 0 2px;font-weight:700;font-size:13.5px}
 .periodo-box{display:inline-flex;align-items:center;gap:6px;background:var(--branco);border:1px solid var(--linha);border-radius:7px;padding:4px 8px}
 .periodo-box label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--cinza)}
 .periodo-box input{border:none;padding:4px 2px;font-size:13px}
@@ -126,8 +140,7 @@ tr.nomes th{top:0 !important}
 tbody td{padding:4px 8px;border-top:1px solid var(--linha);font-size:11.5px;vertical-align:middle;text-transform:uppercase}
 input:not([type=password]),select,textarea{text-transform:uppercase}
 /* estagiários não veem Horário nem Adv. Atendimento na aba Atendimentos */
-body.modo-estag #painel-atendimentos tr.nomes th:nth-child(11),
-body.modo-estag #painel-atendimentos tbody td:nth-child(11){display:none}
+/* coluna Adv. Atendimento removida da lista para todos */
 /* aba Atendimentos: linhas finas para ver muitos contatos de uma vez */
 #painel-atendimentos tbody td{padding:2px 6px;font-size:11.5px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 #painel-atendimentos tbody td .docs-chip{font-size:10px;padding:1px 6px}
@@ -254,6 +267,7 @@ td.acao{white-space:nowrap}
       <button class="btn-topo" id="btnSync" onclick="sincronizar(false)" title="Busca agora os dados mais recentes da nuvem — tudo o que qualquer computador salvou aparece aqui">&#9729; Sincronizar</button>
       <button class="btn-topo" id="btnBaseLeads" style="display:none" onclick="abrirBaseLeads()" title="Todos os leads já importados ao sistema — nenhum é perdido, mesmo excluído da aba Lead">&#128218; Base de Leads</button>
       <button class="btn-topo" id="btnAjuizados" style="display:none" onclick="abrirAjuizados()" title="Todos os processos com status AJUIZADO — somente o master">&#9878; Ajuizados</button>
+      <button class="btn-topo" id="btnConfig" style="display:none" onclick="abrirConfig()" title="Regras de distribuição da conferência — somente o master">&#9881; Configurações</button>
       <button class="btn-topo" id="btnUsuarios" style="display:none" onclick="abrirUsuarios()" title="Adicionar usuários e senhas">&#128101; Usuários</button>
       <button class="btn-topo" onclick="sair()">Sair</button>
     </div>
@@ -616,7 +630,6 @@ td.acao{white-space:nowrap}
           <th><input data-f="EMPRESA" placeholder="Filtrar"></th>
           <th><input data-f="RESPONSAVEL" placeholder="Filtrar"></th>
           <th><input data-f="PASTA" placeholder="Filtrar"></th>
-          <th><input data-f="ADV_ATENDIMENTO" placeholder="Filtrar"></th>
           <th><input data-f="DATA_SAIDA" placeholder="Filtrar"></th>
           <th></th>
           <th><input data-f="OBSERVACOES" placeholder="Filtrar"></th>
@@ -625,7 +638,7 @@ td.acao{white-space:nowrap}
         <tr class="nomes">
           <th style="width:34px"><input type="checkbox" id="atendSelTodos" onclick="event.stopPropagation()" onchange="selTodosAtend(this.checked)" title="Selecionar todos os visíveis"></th>
           <th>Data</th><th>Horário</th><th title="Situação da documentação (mesma da Abertura de Pasta)">Documentação</th><th>Status</th><th>Nome</th><th>Telefone</th><th>Empresa</th><th>Responsável</th>
-          <th>Pasta</th><th>Adv. Atendimento</th><th>Data Saída</th>
+          <th>Pasta</th><th>Data Saída</th>
           <th>Docs</th><th>Observações</th><th></th>
         </tr>
       </thead>
@@ -718,7 +731,7 @@ td.acao{white-space:nowrap}
 <!-- ================= ABA: CONFERÊNCIA ================= -->
 <section class="painel" id="painel-conferencia">
   <div class="barra">
-    <span style="color:var(--cinza);font-size:13px">Toda pasta aberta entra aqui já distribuída automaticamente entre as conferentes (rodízio) · <b style="color:var(--vermelho-tx)">PENDÊNCIA DE DOCUMENTOS</b> devolve a pasta para Atendimentos como PENDENTE DE DOCUMENTO.</span>
+    <span style="color:var(--cinza);font-size:13px">Toda pasta aberta entra aqui já distribuída entre as conferentes — encaminhamentos diretos definidos em &#9881; Configurações; os demais em rodízio alternado · <b style="color:var(--vermelho-tx)">PENDÊNCIA DE DOCUMENTOS</b> devolve a pasta para Atendimentos como PENDENTE DE DOCUMENTO.</span>
     <div class="direita">
       <button class="btn btn-mini btn-principal master-so" style="display:none" onclick="dividirConferencias()" title="Divide entre as conferentes, em rodízio, todas as pendências sem nome (conferências aguardando e iniciais a elaborar) e unifica grafias (dra karla / DRA KARLA → DRA. KARLA)">&#9878; Dividir pendências</button>
       <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
@@ -875,7 +888,7 @@ td.acao{white-space:nowrap}
     <div class="res-card rc-amarelo"><b id="resSemContato">0</b><span>N&atilde;o conseguiu contato</span></div>
     <div class="res-card rc-vermelho"><b id="resNaoFechou">0</b><span>N&atilde;o fechou</span></div>
   </div>
-  <div style="font-size:11px;color:var(--cinza);margin:-6px 0 10px">Leads no per&iacute;odo = fecharam + n&atilde;o conseguiu contato + n&atilde;o fechou (e os % s&atilde;o sobre essa soma). Ficam fora: Atendimento Whats/Voz, Em an&aacute;lise, Retornar, Pendente, Marcado outro dia e sem status.</div>
+  <div style="font-size:11px;color:var(--cinza);margin:-6px 0 10px">Leads no per&iacute;odo = fecharam + n&atilde;o conseguiu contato + n&atilde;o fechou (e os % s&atilde;o sobre essa soma). Ficam fora: Agendado, Atendimento Whats/Voz, Em an&aacute;lise, Retornar, Pendente, Marcado outro dia e sem status.</div>
   <div id="resFila" style="font-size:12.5px;color:var(--cinza);margin:2px 0 10px"></div>
   <div class="res-duas">
     <div class="tabela-wrap">
@@ -885,16 +898,15 @@ td.acao{white-space:nowrap}
         <tbody id="corpoResResp"></tbody>
       </table>
       <div class="vazio" id="vazioResResp" style="display:none">Nenhum lead no per&iacute;odo.</div>
-      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, desligou na cara, BO, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
+      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Agendado, Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, desligou na cara, BO, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
     </div>
     <div class="tabela-wrap">
-      <div class="res-titulo">Fechados faltando documenta&ccedil;&atilde;o — por respons&aacute;vel</div>
-      <table>
-        <thead><tr class="nomes"><th>Respons&aacute;vel</th><th>Faltando docs</th></tr></thead>
-        <tbody id="corpoResFalt"></tbody>
-      </table>
-      <div class="vazio" id="vazioResFalt" style="display:none">Nenhum fechado com documenta&ccedil;&atilde;o pendente no per&iacute;odo.</div>
-      <div class="res-legenda">Clientes FECHADOS do per&iacute;odo cuja documenta&ccedil;&atilde;o ainda n&atilde;o est&aacute; completa (FECHOU com FALTANDO DOCUMENTA&Ccedil;&Atilde;O, FECHOU (PENDENTE DE DOCS) ou PENDENTE DE DOCUMENTO) — a lista de cobran&ccedil;a de cada respons&aacute;vel.</div>
+      <div class="res-titulo">Resumo de status por respons&aacute;vel</div>
+      <div class="rs-wrap">
+        <div class="rs-esq" id="rsLista"></div>
+        <div class="rs-dir" id="rsDetalhe"><div class="vazio">Selecione um respons&aacute;vel &agrave; esquerda.</div></div>
+      </div>
+      <div class="res-legenda">Clique num respons&aacute;vel para ver quantas vezes ele usou cada status no per&iacute;odo filtrado acima — todos os status entram na conta, inclusive os que ficam fora dos cards.</div>
     </div>
     <div class="tabela-wrap" id="boxResAdv">
       <div class="res-titulo">Confer&ecirc;ncias e iniciais por advogada</div>
@@ -978,6 +990,9 @@ td.acao{white-space:nowrap}
         </div>
         <div class="campo-cond campo" id="cond_OUTRODIA">
           <label>Dia / horário remarcado</label><input id="f_RETORNO_DIA_HORARIO" placeholder="Ex.: 20/07 às 14h30">
+        </div>
+        <div class="campo-cond campo" id="cond_AGENDADO">
+          <label>Responsável pelo agendamento</label><input id="f_AGENDADO_POR" placeholder="Preenchido automaticamente" title="Quem lançou o agendamento — o sistema preenche com o seu usuário">
         </div>
       </div>
 
@@ -1065,6 +1080,27 @@ td.acao{white-space:nowrap}
 </div>
 
 <!-- ================= MODAL USUÁRIOS ================= -->
+<div class="modal-fundo" id="mConfig">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-topo">
+      <h2>&#9881; Configura&ccedil;&otilde;es — distribui&ccedil;&atilde;o da confer&ecirc;ncia</h2>
+      <button class="fechar" onclick="fecharModal('mConfig')">&times;</button>
+    </div>
+    <div class="modal-corpo">
+      <p style="font-size:12.5px;color:var(--cinza);margin:0 0 10px">
+        Atendimentos do respons&aacute;vel da esquerda v&atilde;o <b>direto</b> para a conferente da direita, sem passar pelo rod&iacute;zio.
+        Quem n&atilde;o estiver na lista segue o <b>rod&iacute;zio alternado</b> entre as conferentes. As regras valem para as pastas novas e para o bot&atilde;o &quot;Dividir pend&ecirc;ncias&quot;.
+      </p>
+      <div id="cfgLinhas"></div>
+      <button class="btn btn-mini btn-borda" onclick="cfgAdd('','')">+ Adicionar regra</button>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+        <button class="btn btn-borda" onclick="fecharModal('mConfig')">Cancelar</button>
+        <button class="btn btn-principal" onclick="salvarConfig()">Salvar regras</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-fundo" id="mUsuarios">
   <div class="modal" style="max-width:640px">
     <div class="modal-topo">
@@ -1121,6 +1157,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbxy32gPLb_2ZlUSehESqU9u
 /* ===================== constantes ===================== */
 const STATUS_CORES = {
   'FECHOU':'verde',
+  'AGENDADO':'azul',
   'PENDENTE ASSINATURA':'azul',
   'PENDENTE DE DOCUMENTO':'amarelo',
   'SEM INTERESSE':'vermelho',
@@ -1544,7 +1581,7 @@ function renderizar(){
       <td title="${esc(r.STATUS)||''}"><span class="pill ${cor}">${esc(r.STATUS)||'—'}</span>${extra.length?'<div style="font-size:11px;margin-top:3px">'+extra.join(' · ')+'</div>':''}</td>
       <td title="${esc(r.NOME)}"><b>${esc(r.NOME)}</b>${String(r.NOVO||'')==='SIM'?' <span class="docs-chip" title="Novo atendimento agendado para o responsável — some quando ele abrir a ficha" style="background:var(--azul-bg);color:var(--azul-tx);font-weight:700">&#128276; NOVO</span>':''}${String(r.PRIORIDADE||'')==='SIM'?' <span class="docs-chip" title="PRIORIDADE de abertura de pasta" style="background:var(--vermelho-bg);color:var(--vermelho-tx);font-weight:700">&#9873; PRIOR.</span>':''}${normaliza(r.ORIGEM)==='INDICACAO'?' <span class="docs-chip" title="Atendimento criado por indicação" style="background:var(--amarelo-bg);color:var(--amarelo-tx)">IND</span>':''}</td><td title="${esc(r.TELEFONE)}">${esc(r.TELEFONE)}</td>
       <td title="${esc(r.EMPRESA)}">${esc(r.EMPRESA)}</td><td title="${esc(r.RESPONSAVEL)}">${esc(r.RESPONSAVEL)}</td><td title="${esc(r.PASTA)}">${esc(r.PASTA)}</td>
-      <td title="${esc(r.ADV_ATENDIMENTO)}">${esc(r.ADV_ATENDIMENTO)}</td><td>${esc(dataBR(r.DATA_SAIDA))}</td>
+      <td>${esc(dataBR(r.DATA_SAIDA))}</td>
       <td><span class="docs-chip">${totalDocs(r)} arq.</span></td>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(obs)}">${esc(obs)}</td>
       <td class="acao">
@@ -1813,7 +1850,7 @@ let resumoIniciado = false;
 // FORA DO RESUMO = atendimento whats/voz, em análise, retornar, pendente, marcado outro dia e sem status
 const RES_SEM_CONTATO = ['TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
 const RES_NAO_FECHOU  = ['PENDENTE ASSINATURA','SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','BO','PRESCRITO','JA TEM ACAO'];
-const RES_AGENDOU     = ['ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
+const RES_AGENDOU     = ['AGENDADO','ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
 function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'||st==='PENDENTE DE DOCUMENTO'}
 function listaConferentes(){
   const mapa = new Map(); // chave normalizada -> grafia preferida (as do rodízio primeiro)
@@ -1854,6 +1891,22 @@ async function dividirConferencias(){
     toast('Conferências atribuídas: '+r.confAtribuidas+' · Iniciais atribuídas: '+r.iniAtribuidas+' · Grafias unificadas: '+r.unificados);
     await carregar();
   }else toast('Erro: '+(r.erro||'não foi possível dividir'));
+}
+let rsDados = {};   // resumo de status por responsável (montado no renderResumo)
+let rsSel = '';
+function rsSelecionar(chave){rsSel = chave; renderResumo();}
+function renderRsDetalhe(){
+  const alvo = $('rsDetalhe'); if(!alvo)return;
+  const o = rsDados[rsSel];
+  if(!o){alvo.innerHTML='<div class="vazio">Selecione um responsável à esquerda.</div>';return}
+  const de=$('fResDe').value, ate=$('fResAte').value;
+  const per = (de||ate) ? ((de?de.split('-').reverse().join('/'):'…')+' até '+(ate?ate.split('-').reverse().join('/'):'…')) : 'Todos os períodos';
+  const linhas = Object.values(o.porStatus).sort((a,b)=>b.qtd-a.qtd)
+    .map(x=>`<div class="rs-linha"><span>${esc(x.rotulo)}</span><b>${x.qtd}</b></div>`).join('');
+  alvo.innerHTML = `<h3>Resumo de status — ${esc(o.nome)}</h3>
+    <span class="rs-per">${esc(per)}</span>
+    ${linhas}
+    <div class="rs-total"><span>Total de registros</span><span>${o.total}</span></div>`;
 }
 function pad2res(n){return String(n).padStart(2,'0')}
 function resPeriodo(tipo){
@@ -1912,23 +1965,25 @@ function renderResumo(){
     return `<tr><td><b>${esc(o.nome)}</b></td><td>${o.leads}</td><td>${o.ligou}</td><td>${o.agendou}</td><td><b>${o.fechou}</b></td><td>${pct}%</td></tr>`;
   }).join('');
   $('vazioResResp').style.display = nomes.length?'none':'block';
-  // fechados faltando documentação, por responsável (lista de cobrança)
-  const porFalt = {};
+  // resumo de status por responsável (painel clicável)
+  rsDados = {};
   base.forEach(r=>{
-    const st = normaliza(r.STATUS);
-    const falt = st==='FECHOU (PENDENTE DE DOCS)' || st==='PENDENTE DE DOCUMENTO' || (st==='FECHOU' && normaliza(r.DOC_SITUACAO)==='FALTANDO DOCUMENTACAO');
-    if(!falt) return;
     const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
     const chave = normaliza(bruto);
-    const o = porFalt[chave]||(porFalt[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),qtd:0});
-    o.qtd++;
+    const o = rsDados[chave]||(rsDados[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),total:0,porStatus:{}});
+    o.total++;
+    const stBruto = String(r.STATUS||'').trim();
+    const stChave = stBruto ? normaliza(stBruto) : 'SEM STATUS';
+    const ps = o.porStatus[stChave]||(o.porStatus[stChave]={rotulo:(stBruto||'SEM STATUS (não trabalhado)'),qtd:0});
+    ps.qtd++;
   });
-  const faltNomes = Object.keys(porFalt).sort((a,b)=>porFalt[b].qtd-porFalt[a].qtd);
-  $('corpoResFalt').innerHTML = faltNomes.map(n=>{
-    const o=porFalt[n];
-    return `<tr><td><b>${esc(o.nome)}</b></td><td><b style="color:var(--vermelho-tx)">${o.qtd}</b></td></tr>`;
-  }).join('');
-  $('vazioResFalt').style.display = faltNomes.length?'none':'block';
+  const rsChaves = Object.keys(rsDados).sort((a,b)=>rsDados[b].total-rsDados[a].total);
+  if(!rsChaves.includes(rsSel)) rsSel = rsChaves[0]||'';
+  $('rsLista').innerHTML = rsChaves.map(c=>{
+    const o=rsDados[c];
+    return `<button class="${c===rsSel?'ativo':''}" onclick="rsSelecionar('${esc(c)}')"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.nome)}</span><span class="docs-chip">${o.total}</span></button>`;
+  }).join('') || '<div class="vazio">Nenhum lead no período.</div>';
+  renderRsDetalhe();
   // conferências e iniciais por advogada — contadas pelas PRÓPRIAS datas (conferência / FEITO)
   const porAdv = {};
   const advRef = chave => porAdv[chave]||(porAdv[chave]={nome:(conferentesServidor.find(x=>normaliza(x)===chave)||''),conf:0,ini:0});
@@ -1951,6 +2006,38 @@ function renderResumo(){
   $('boxResAdv').style.display = minha?'none':'';
 }
 
+/* ===================== configurações (master) ===================== */
+async function abrirConfig(){
+  if(!usuario || !usuario.master)return;
+  $('mConfig').classList.add('aberto');
+  $('cfgLinhas').innerHTML='<div class="vazio">Carregando regras…</div>';
+  const r = await apiPost({action:'configConf'});
+  if(!r.ok){$('cfgLinhas').innerHTML='<div class="vazio">Erro ao carregar: '+esc(r.erro||'servidor antigo? Faça a Nova versão do Code.gs')+'</div>';return}
+  $('cfgLinhas').innerHTML='';
+  (r.regras||[]).forEach(x=>cfgAdd(x.de||'',x.para||''));
+  if(!(r.regras||[]).length)cfgAdd('','');
+}
+function cfgAdd(de,para){
+  const div=document.createElement('div');
+  div.className='cfg-linha';
+  div.innerHTML=`<input class="cfgDe" list="dlResponsaveis" placeholder="Responsável (ex.: DRA. CLAUDIA)" value="${esc(de)}" title="Atendimentos deste advogado/estagiário">
+    <span style="color:var(--cinza)">&#8594;</span>
+    <input class="cfgPara" list="dlConferentes" placeholder="Conferente (ex.: DRA. LARISSA)" value="${esc(para)}" title="Vão direto para a conferência desta advogada">
+    <button class="btn btn-mini btn-perigo" onclick="this.parentElement.remove()" title="Remover esta regra">&times;</button>`;
+  $('cfgLinhas').appendChild(div);
+}
+async function salvarConfig(){
+  const regras=[...document.querySelectorAll('#cfgLinhas .cfg-linha')].map(l=>({
+    de:l.querySelector('.cfgDe').value.trim().toUpperCase(),
+    para:l.querySelector('.cfgPara').value.trim().toUpperCase()
+  })).filter(x=>x.de && x.para);
+  loading(true,'Salvando regras…');
+  const r = await apiPost({action:'salvarConfigConf',regras,senhaMaster:usuario.senha});
+  loading(false);
+  if(r.ok){toast('Regras salvas: '+r.total+' encaminhamento(s) direto(s) — já valem para as próximas pastas');fecharModal('mConfig')}
+  else toast('Erro: '+(r.erro||'não foi possível salvar'));
+}
+
 /* ===================== ficha (modal) ===================== */
 function abrirFicha(id){
   fichaAtual = id ? registros.find(r=>r.ID===id) : null;
@@ -1971,7 +2058,7 @@ function abrirFicha(id){
   }
   $('f_DATA').value = dataISO(g('DATA'))||g('DATA');
   $('f_DATA_SAIDA').value = dataISO(g('DATA_SAIDA'))||g('DATA_SAIDA');
-  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM','PRIORIDADE','AREA']
+  ['HORARIO','NOME','TELEFONE','EMPRESA','RESPONSAVEL','PASTA','ADV_ATENDIMENTO','OBSERVACOES','STATUS','INDICACAO','RETORNO_DIA_HORARIO','DOC_SITUACAO','ORIGEM','PRIORIDADE','AREA','AGENDADO_POR']
     .forEach(c=>{
       const el=$('f_'+c); el.value=g(c);
       if(c==='RESPONSAVEL' && el.value!==g(c)){ // select: casa ignorando acentos/caixa
@@ -2034,6 +2121,9 @@ function condicionais(){
   $('cond_INDICACAO').classList.toggle('visivel', s==='FECHOU');
   $('cond_DOCSIT').classList.toggle('visivel', s==='FECHOU');
   $('cond_OUTRODIA').classList.toggle('visivel', s==='MARCADO OUTRO DIA');
+  $('cond_AGENDADO').classList.toggle('visivel', s==='AGENDADO');
+  // ao marcar AGENDADO, o sistema registra quem está lançando o agendamento
+  if(s==='AGENDADO' && usuario && !$('f_AGENDADO_POR').value.trim())$('f_AGENDADO_POR').value = usuario.nome;
 }
 
 async function salvarFicha(){
@@ -2054,7 +2144,8 @@ async function salvarFicha(){
     AREA: $('f_AREA').value,
     PRIORIDADE: $('f_PRIORIDADE').value,
     INDICACAO: $('f_INDICACAO').value.trim(),
-    RETORNO_DIA_HORARIO: $('f_RETORNO_DIA_HORARIO').value.trim()
+    RETORNO_DIA_HORARIO: $('f_RETORNO_DIA_HORARIO').value.trim(),
+    AGENDADO_POR: $('f_AGENDADO_POR').value.trim()
   };
   if(!reg.NOME){toast('Informe o nome do cliente');return}
   if(normaliza(reg.STATUS)==='FECHOU'){
@@ -3976,6 +4067,7 @@ function aplicarPermissoesUI(){
   document.body.classList.toggle('modo-estag', souEstagiario());
   $('usuLogado').textContent = usuario.nome;
   $('btnUsuarios').style.display = usuario.master?'inline-flex':'none';
+  $('btnConfig').style.display = usuario.master?'inline-flex':'none';
   $('btnBaseLeads').style.display = usuario.master?'inline-flex':'none';
   $('btnAjuizados').style.display = usuario.master?'inline-flex':'none';
   document.querySelectorAll('.master-so').forEach(el=>el.style.display = usuario.master?'inline-flex':'none');
@@ -4081,7 +4173,7 @@ async function abrirUsuarios(){
 }
 
 function renderUsuarios(){
-  $('listaUsuarios').innerHTML = listaUsuariosCache.map((u,i)=>{
+  const linhaUsu = (u,i)=>{
     const abas = u.abas.split(',');
     return `<div class="usu-linha">
       <input type="text" id="uNome_${i}" value="${esc(u.nome)}">
@@ -4106,11 +4198,17 @@ function renderUsuarios(){
         <label><input type="checkbox" id="uAjuiz_${i}" ${abas.includes('ajuizamento')?'checked':''}> Ajuizamento</label>
         <label><input type="checkbox" id="uResumo_${i}" ${abas.includes('resumo')?'checked':''}> Resumo</label>
       </span>
+      <label style="font-size:11.5px;white-space:nowrap;color:var(--vermelho-tx)" title="Marcado: não entra mais no sistema nem recebe leads, mas TODO o histórico dele permanece. Desmarque e salve para reativar."><input type="checkbox" id="uDesat_${i}" ${u.desativado?'checked':''}> Usuário Desativado</label>
       <button class="btn btn-mini btn-borda" onclick="salvarUsuario(${i})">Salvar</button>
       <button class="btn btn-mini btn-borda" onclick="redistribuirDeUsuario(${i})" title="Envia os atendimentos EM ANDAMENTO deste usuário para quem recebe leads (status zerado); os finalizados ficam com ele">Redistribuir leads</button>
       <button class="btn btn-mini btn-perigo" onclick="excluirUsuario(${i})">Excluir</button>
     </div>`;
-  }).join('') || '<div style="font-size:12.5px;color:var(--cinza);margin-bottom:8px">Nenhum usuário cadastrado ainda.</div>';
+  };
+  const ativos=[], desativados=[];
+  listaUsuariosCache.forEach((u,i)=>{(u.desativado?desativados:ativos).push(linhaUsu(u,i))});
+  $('listaUsuarios').innerHTML =
+    (ativos.join('') || '<div style="font-size:12.5px;color:var(--cinza);margin-bottom:8px">Nenhum usuário ativo cadastrado.</div>') +
+    (desativados.length ? `<div style="margin:16px 0 6px;font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--vermelho-tx)">USUÁRIOS DESATIVADOS (${desativados.length}) — sem acesso ao sistema; histórico preservado</div><div style="opacity:.72">${desativados.join('')}</div>` : '');
 }
 
 function abasMarcadas(atendId,abertId,inicId,ajuizId,agendId,agendaId,confId,leadId,resumoId){
@@ -4147,14 +4245,16 @@ async function salvarUsuario(i){
   const nome=$('uNome_'+i).value.trim(), senha=$('uSenha_'+i).value.trim();
   const praca=[...document.querySelectorAll('.uPraca_'+i+':checked')].map(c=>c.value).join(',');
   const abas=abasMarcadas('uAtend_'+i,'uAbert_'+i,'uInic_'+i,'uAjuiz_'+i,'uAgend_'+i,'uAgenda_'+i,'uConf_'+i,'uLead_'+i,'uResumo_'+i);
+  const desat = $('uDesat_'+i).checked;
   if(!nome||!senha){toast('Informe nome e senha');return}
-  // praça só é exigida de quem recebe leads
-  if($('uRecebe_'+i).checked && !praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
+  // praça só é exigida de quem recebe leads (e não de quem está desativado)
+  if(!desat && $('uRecebe_'+i).checked && !praca){toast('Marque ao menos uma Praça de Atendimento (pode mais de uma)');return}
   if(!abas){toast('Marque ao menos uma aba');return}
+  if(desat && !listaUsuariosCache[i].desativado && !confirm('Desativar '+nome+'?\n\nEle(a) não conseguirá mais entrar no sistema e sai da distribuição de leads, mas TODO o histórico permanece. Para reativar, basta desmarcar e salvar.'))return;
   loading(true,'Salvando…');
-  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('uTipo_'+i).value,recebeLeads:$('uRecebe_'+i).checked?'SIM':'NAO',nomeAntigo:listaUsuariosCache[i].nome});
+  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('uTipo_'+i).value,recebeLeads:$('uRecebe_'+i).checked?'SIM':'NAO',desativado:desat?'SIM':'NAO',nomeAntigo:listaUsuariosCache[i].nome});
   loading(false);
-  if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();toast('Usuário atualizado')}
+  if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();toast(desat?'Usuário desativado — histórico preservado':'Usuário atualizado')}
   else toast(r.erro);
 }
 
