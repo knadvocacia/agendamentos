@@ -1486,6 +1486,10 @@ async function salvarAtendLote(){
   if($('atl_RESPONSAVEL').value.trim()){
     destino = respValido($('atl_RESPONSAVEL').value.trim());
     if(!destino){toast('Responsável não encontrado: cadastre-o em Usuários como ESTAGIÁRIO ou ADVOGADO');return}
+    if(!(usuario && usuario.master) && normaliza($('atl_STATUS').value)!=='AGENDADO'){
+      toast('O responsável só pode ser alterado quando o status for AGENDADO — escolha AGENDADO no campo Status deste lote');
+      return;
+    }
   }
   if(!Object.keys(campos).length && !destino){toast('Preencha ao menos um campo para alterar');return}
   const ids = [...atendSel];
@@ -2110,7 +2114,6 @@ function abrirFicha(id){
     const alvoE=[...sr.options].find(o=>normaliza(o.value)===normaliza(usuario.nome));
     sr.value = alvoE?alvoE.value:usuario.nome;
   }
-  $('f_RESPONSAVEL').disabled = !!estagF; // travado para o estagiário
   $('f_ADV_ATENDIMENTO').closest('.campo').style.display = 'none'; // campo retirado da ficha
   // descrição da pendência registrada na Conferência (somente leitura)
   const pendConf = g('CONF_OBS');
@@ -2149,6 +2152,19 @@ function condicionais(){
   $('cond_AGENDADO').classList.toggle('visivel', s==='AGENDADO');
   // ao marcar AGENDADO, o sistema registra quem está lançando o agendamento
   if(s==='AGENDADO' && usuario && !$('f_AGENDADO_POR').value.trim())$('f_AGENDADO_POR').value = usuario.nome;
+  // responsável: bloqueado, SALVO com status AGENDADO — é nesse momento que a estagiária
+  // transfere o caso para o advogado que o assumirá. Master pode sempre; atendimento
+  // novo lançado por atendente/master continua com a escolha livre.
+  const selR = $('f_RESPONSAVEL');
+  if(selR){
+    const ehMaster = !!(usuario && usuario.master);
+    const novo = !fichaAtual;
+    const pode = ehMaster || s==='AGENDADO' || (novo && !souEstagiario());
+    selR.disabled = !pode;
+    selR.title = pode
+      ? 'Escolha o advogado ou estagiário responsável pelo caso — o atendimento aparece na lista dele'
+      : 'O responsável só pode ser alterado quando o status for AGENDADO (agendamento com o advogado que assume o caso)';
+  }
 }
 
 async function salvarFicha(){
