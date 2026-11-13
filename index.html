@@ -898,7 +898,7 @@ td.acao{white-space:nowrap}
         <tbody id="corpoResResp"></tbody>
       </table>
       <div class="vazio" id="vazioResResp" style="display:none">Nenhum lead no per&iacute;odo.</div>
-      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Agendado, Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, desligou na cara, BO, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
+      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Agendado, Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, desligou na cara, BO, distrato, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
     </div>
     <div class="tabela-wrap">
       <div class="res-titulo">Resumo de status por respons&aacute;vel</div>
@@ -1164,6 +1164,7 @@ const STATUS_CORES = {
   'SEM DIREITO':'vermelho',
   'DESLIGOU NA CARA':'vermelho',
   'BO':'vermelho',
+  'DISTRATO':'vermelho',
   'TENTOU LIGAR E ENVIOU MSG':'amarelo',
   'TENTOU LIGAR E NÃO ENVIOU MENSAGEM':'amarelo',
   'ATENDIMENTO WHATS':'azul',
@@ -1193,7 +1194,14 @@ function docsLen(r,c){
   if(!v) return 0;
   try{return JSON.parse(v).length}catch(e){return 0}
 }
+// responsáveis isentos da exigência de documentos obrigatórios (mesma lista do servidor)
+const RESP_SEM_DOCS = ['RAFAEL'];
+function respIsentoDocs(resp){
+  const r = ' '+normaliza(resp).replace(/\./g,' ').replace(/\s+/g,' ').trim()+' ';
+  return RESP_SEM_DOCS.some(k=>r.includes(' '+k+' '));
+}
 function docsObrigFaltantes(r){
+  if(respIsentoDocs(r.RESPONSAVEL)) return []; // exceção: fecha e abre pasta sem docs obrigatórios
   return DOCS_OBRIG.filter(([c])=>docsLen(r,c)===0).map(([,t])=>t);
 }
 const DOCS_OPC = [
@@ -1334,7 +1342,8 @@ function salvarCacheLocal(){
     localStorage.setItem('cacheDadosADV', JSON.stringify({
       t: Date.now(), atendimentos: registros, agendamentos: agRegistros,
       leads: leadRegistros, estagiarios: estagiariosCache, responsaveis: responsaveisCache,
-      conferentes: conferentesServidor
+      conferentes: conferentesServidor,
+      ocultosResumo: ocultosResumoCache
     }));
   }catch(e){/* cache cheio/indisponível: segue sem */}
 }
@@ -1349,6 +1358,7 @@ function usarCacheLocal(){
     if(c.estagiarios) aplicarEstagiarios(c.estagiarios);
     if(c.responsaveis) aplicarResponsaveis(c.responsaveis);
     if(c.conferentes) conferentesServidor = c.conferentes;
+    if(c.ocultosResumo) ocultosResumoCache = c.ocultosResumo;
     renderizar(); renderAgendamentos(); renderLeads();
     const el=$('ultimaSync');
     if(el) el.textContent = 'Dados de '+new Date(c.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+' · atualizando…';
@@ -1396,6 +1406,7 @@ function aplicarDados(r){
   else{carregarEstagiarios()} // implantação antiga: busca em chamada separada
   if(r.responsaveis)aplicarResponsaveis(r.responsaveis);
   if(r.conferentes)conferentesServidor = r.conferentes;
+  if(r.ocultosResumo)ocultosResumoCache = r.ocultosResumo;
   marcarSync();
   salvarCacheLocal();
   avisarNovos();
@@ -1846,6 +1857,7 @@ function renderizar(){
 /* ===================== aba RESUMO ===================== */
 let conferentesExtras = [];   // nomes adicionados pelo botão + (até serem gravados num registro)
 let conferentesServidor = []; // nomes fixos do rodízio, enviados pelo servidor
+let ocultosResumoCache = []; // usuários marcados em Usuários para NÃO aparecer nos quadros do Resumo
 let resumoIniciado = false;
 // mapeamento definido pela gestão (v32.1):
 // FECHOU = fechou, fechou (pendente de docs), pendente de documento
@@ -1853,7 +1865,7 @@ let resumoIniciado = false;
 // NÃO FECHOU = pendente assinatura, sem interesse, sem direito, prescrito, já tem ação
 // FORA DO RESUMO = atendimento whats/voz, em análise, retornar, pendente, marcado outro dia e sem status
 const RES_SEM_CONTATO = ['TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
-const RES_NAO_FECHOU  = ['PENDENTE ASSINATURA','SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','BO','PRESCRITO','JA TEM ACAO'];
+const RES_NAO_FECHOU  = ['PENDENTE ASSINATURA','SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','BO','DISTRATO','PRESCRITO','JA TEM ACAO'];
 const RES_AGENDOU     = ['AGENDADO','ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
 function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'||st==='PENDENTE DE DOCUMENTO'}
 function listaConferentes(){
@@ -1937,6 +1949,7 @@ function renderResumo(){
   const base = (minha ? registros.filter(r=>normaliza(r.RESPONSAVEL)===normaliza(usuario.nome)) : registros)
     .filter(r=>dentro(dataISO(r.DATA)));
   let nFech=0,nSem=0,nNao=0;
+  const esconde = chave => ocultosResumoCache.some(n=>normaliza(n)===chave);
   const porResp = {};
   base.forEach(r=>{
     const st = normaliza(r.STATUS);
@@ -1946,6 +1959,7 @@ function renderResumo(){
     // demais status (em andamento) e sem status ficam FORA do resumo e do total
     const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
     const chave = normaliza(bruto); // mesma pessoa escrita diferente conta junto
+    if(esconde(chave)) return; // marcado em Usuários para não aparecer no Resumo
     const o = porResp[chave]||(porResp[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),leads:0,ligou:0,agendou:0,fechou:0});
     o.leads++;
     if(st)o.ligou++;
@@ -1974,6 +1988,7 @@ function renderResumo(){
   base.forEach(r=>{
     const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
     const chave = normaliza(bruto);
+    if(esconde(chave)) return; // marcado em Usuários para não aparecer no Resumo
     const o = rsDados[chave]||(rsDados[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),total:0,porStatus:{}});
     o.total++;
     const stBruto = String(r.STATUS||'').trim();
@@ -1993,11 +2008,11 @@ function renderResumo(){
   const advRef = chave => porAdv[chave]||(porAdv[chave]={nome:(conferentesServidor.find(x=>normaliza(x)===chave)||''),conf:0,ini:0});
   registros.forEach(r=>{
     const conf = String(r.CONF_RESP||'').trim();
-    if(conf && String(r.CONF_STATUS||'').trim() && dentro(dataISO(r.CONF_DATA)||dataISO(r.DATA_ABERTURA))){
+    if(conf && !esconde(normaliza(conf)) && String(r.CONF_STATUS||'').trim() && dentro(dataISO(r.CONF_DATA)||dataISO(r.DATA_ABERTURA))){
       const o=advRef(normaliza(conf)); if(!o.nome)o.nome=conf; o.conf++;
     }
     const ini = String(r.INICIAL_RESP||'').trim();
-    if(ini && normaliza(r.INICIAL_STATUS)==='FEITO' && dentro(dataISO(r.DATA_FEITO))){
+    if(ini && !esconde(normaliza(ini)) && normaliza(r.INICIAL_STATUS)==='FEITO' && dentro(dataISO(r.DATA_FEITO))){
       const o=advRef(normaliza(ini)); if(!o.nome)o.nome=ini; o.ini++;
     }
   });
@@ -2191,8 +2206,8 @@ async function salvarFicha(){
   if(!reg.NOME){toast('Informe o nome do cliente');return}
   if(normaliza(reg.STATUS)==='FECHOU'){
     const sit = $('f_DOC_SITUACAO').value;
-    if(!sit){toast('Selecione a situação da documentação: DOCUMENTAÇÃO OK ou FALTANDO DOCUMENTAÇÃO');return}
-    reg.DOC_SITUACAO = sit;
+    if(!sit && !respIsentoDocs(reg.RESPONSAVEL)){toast('Selecione a situação da documentação: DOCUMENTAÇÃO OK ou FALTANDO DOCUMENTAÇÃO');return}
+    if(sit) reg.DOC_SITUACAO = sit;
   }
   if(normaliza(reg.STATUS)==='SEM INTERESSE' && !reg.OBSERVACOES){
     toast('O status SEM INTERESSE exige o MOTIVO nas Observações');
@@ -3310,6 +3325,18 @@ async function excluirLead(id){
   else toast('Erro: '+resp.erro);
 }
 
+function statusImportValido(v){
+  // casa o texto importado com um status conhecido do sistema (aceita plural: AGENDADOS)
+  const n = normaliza(v); if(!n) return '';
+  const chave = Object.keys(STATUS_CORES).find(st=>{const c=normaliza(st);return c===n||c===n.replace(/S$/,'')});
+  return chave || String(v).trim().toUpperCase();
+}
+function areaImportValida(v){
+  const n = normaliza(v);
+  if(n==='TRABALHISTA')return 'TRABALHISTA';
+  if(n.indexOf('PREVIDENC')===0)return 'PREVIDENCIÁRIO';
+  return '';
+}
 function importarLeads(input){
   const file=input.files[0]; input.value='';
   if(!file)return;
@@ -3333,6 +3360,13 @@ function importarLeads(input){
       const pPr = cab.findIndex(x=>x.includes('PRACA')||x.includes('CIDADE')||x.includes('REGIAO')||x==='UF');
       if(pPr>=0){idx.PRACA=pPr;temCab=true}
     }
+    // coluna de STATUS (ex.: leads que já chegam AGENDADOS) e coluna de ÁREA (trabalhista/previdenciário)
+    let pSt = cab.findIndex(x=>x==='STATUS'||x.includes('STATUS'));
+    let pAr = cab.findIndex(x=>x==='AREA'||x.includes('AREA'));
+    if(pAr<0){ // sem cabeçalho de área: acha a coluna cujos valores são TRABALHISTA/PREVIDENCIÁRIO
+      pAr = (linhas[0]||[]).findIndex((_,i)=>linhas.some(l=>{const n=normaliza(l[i]);return n==='TRABALHISTA'||n.indexOf('PREVIDENC')===0}));
+    }
+    if(pSt>=0||pAr>=0)temCab=true;
     if(cab.findIndex(x=>x==='INFO'||x.includes('INFO'))<0){
       const pAlt = cab.findIndex(x=>x.includes('ATENDENTE')||x.includes('ROBO')||x.includes('ESTAG'));
       if(pAlt>=0){idx.INFO=pAlt;temCab=true}
@@ -3352,14 +3386,20 @@ function importarLeads(input){
       // DATA fica em branco: será preenchida com o dia do envio ao estagiário;
       // a BASE (mês/ano da importação) é gravada automaticamente pelo servidor
       PRACA:idx.PRACA>=0?pracaPadrao(l[idx.PRACA]):'', // fora do padrão RJ/CTBA/SP/FOR fica em branco
-      ATENDENTE:infoValida(l[idx.INFO])||''
+      ATENDENTE:infoValida(l[idx.INFO])||'',
+      STATUS_INICIAL:pSt>=0?statusImportValido(l[pSt]):'', // vira o status do atendimento ao distribuir
+      AREA:pAr>=0?areaImportValida(l[pAr]):''
     }));
     const nEst = regs.filter(r=>r.ATENDENTE==='ESTAGIÁRIO').length;
     const nRobo = regs.filter(r=>r.ATENDENTE==='ROBO').length;
+    const nComSt = regs.filter(r=>r.STATUS_INICIAL).length;
+    const nComAr = regs.filter(r=>r.AREA).length;
     if(!confirm('Importar '+regs.length+' lead(s)?'+
       (nEst||nRobo?'\n\nInfo detectada: '+nEst+' ESTAGIÁRIO · '+nRobo+' ROBO'+
       (nEst?'\nOs de ESTAGIÁRIO serão distribuídos automaticamente (até 15/dia por estagiário) na aba Atendimentos.':'')
-      :'\n\nAtenção: nenhuma coluna de Info (ROBO/ESTAGIÁRIO) foi encontrada na planilha.')))return;
+      :'\n\nAtenção: nenhuma coluna de Info (ROBO/ESTAGIÁRIO) foi encontrada na planilha.')+
+      (nComSt?'\n'+nComSt+' com STATUS já definido (ex.: AGENDADO) — o atendimento já nasce com ele.':'')+
+      (nComAr?'\n'+nComAr+' com ÁREA (trabalhista/previdenciário).':'')))return;
     (async()=>{
       loading(true,'Importando '+regs.length+' leads…');
       const resp = await apiPost({action:'salvarLeadsLote',registros:regs,senhaMaster:usuario.senha});
@@ -4239,6 +4279,7 @@ function renderUsuarios(){
         <label><input type="checkbox" id="uAjuiz_${i}" ${abas.includes('ajuizamento')?'checked':''}> Ajuizamento</label>
         <label><input type="checkbox" id="uResumo_${i}" ${abas.includes('resumo')?'checked':''}> Resumo</label>
       </span>
+      <label style="font-size:11.5px;white-space:nowrap" title="Desmarcado: este usuário não aparece nos quadros por responsável da aba Resumo"><input type="checkbox" id="uVisRes_${i}" ${u.ocultoResumo?'':'checked'}> Aparece no Resumo</label>
       <label style="font-size:11.5px;white-space:nowrap;color:var(--vermelho-tx)" title="Marcado: não entra mais no sistema nem recebe leads, mas TODO o histórico dele permanece. Desmarque e salve para reativar."><input type="checkbox" id="uDesat_${i}" ${u.desativado?'checked':''}> Usuário Desativado</label>
       <button class="btn btn-mini btn-borda" onclick="salvarUsuario(${i})">Salvar</button>
       <button class="btn btn-mini btn-borda" onclick="redistribuirDeUsuario(${i})" title="Envia os atendimentos EM ANDAMENTO deste usuário para quem recebe leads (status zerado); os finalizados ficam com ele">Redistribuir leads</button>
@@ -4293,7 +4334,7 @@ async function salvarUsuario(i){
   if(!abas){toast('Marque ao menos uma aba');return}
   if(desat && !listaUsuariosCache[i].desativado && !confirm('Desativar '+nome+'?\n\nEle(a) não conseguirá mais entrar no sistema e sai da distribuição de leads, mas TODO o histórico permanece. Para reativar, basta desmarcar e salvar.'))return;
   loading(true,'Salvando…');
-  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('uTipo_'+i).value,recebeLeads:$('uRecebe_'+i).checked?'SIM':'NAO',desativado:desat?'SIM':'NAO',nomeAntigo:listaUsuariosCache[i].nome});
+  const r = await apiPost({action:'salvarUsuario',senhaMaster:usuario.senha,nome,senha,abas,praca,tipo:$('uTipo_'+i).value,recebeLeads:$('uRecebe_'+i).checked?'SIM':'NAO',desativado:desat?'SIM':'NAO',apareceResumo:$('uVisRes_'+i).checked?'SIM':'NAO',nomeAntigo:listaUsuariosCache[i].nome});
   loading(false);
   if(r.ok){listaUsuariosCache=r.usuarios;renderUsuarios();toast(desat?'Usuário desativado — histórico preservado':'Usuário atualizado')}
   else toast(r.erro);
