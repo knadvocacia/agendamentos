@@ -653,7 +653,7 @@ td.acao{white-space:nowrap}
   <div class="barra">
     <span class="fechados-badge" id="badgeAbertas" onclick="trocarSubAba('historico')" title="Clique para ver as pastas abertas">PASTAS ABERTAS: 0</span>
     <span class="fechados-badge badge-amarelo" id="badgeNaoAbertas" onclick="filtrarAbertura('')" title="Clique para ver as pastas não abertas">PASTAS NÃO ABERTAS: 0</span>
-    <span class="fechados-badge badge-vermelho" id="badgeFaltDoc" onclick="verAguardandoDocs()" title="Clientes FECHADOS ainda SEM os documentos obrigatórios anexados — não entram na Abertura e seguem com o estagiário em Atendimentos. Clique para ver quem está aguardando; clique de novo para voltar.">AGUARDANDO DOCS (COM ESTAGIÁRIO): 0</span>
+    <span class="fechados-badge badge-vermelho" id="badgeFaltDoc" onclick="verAguardandoDocs()" title="Clientes FECHADOS com 2 ou mais documentos obrigatórios sem anexo — não entram na Abertura e seguem com o estagiário em Atendimentos (faltando só 1, a pasta segue normalmente). Clique para ver quem está aguardando; clique de novo para voltar.">AGUARDANDO DOCS (COM ESTAGIÁRIO): 0</span>
     <div class="sub-abas">
       <button class="sub-aba ativa" id="subPendentes" onclick="trocarSubAba('pendentes')">Em aberto</button>
       <button class="sub-aba" id="subHistorico" onclick="trocarSubAba('historico')">Pastas abertas</button>
@@ -1630,9 +1630,9 @@ function renderizar(){
   const pendTodas = listaAbertura.filter(r=>!noHistorico(r));
   // só chega na Abertura o FECHOU com TODOS os documentos obrigatórios anexados;
   // sem os docs, o cliente fica com o estagiário na aba Atendimentos (lista "aguardando")
-  const aguardandoDocs = pendTodas.filter(r=>docsObrigFaltantes(r).length>0)
+  const aguardandoDocs = pendTodas.filter(r=>docsObrigFaltantes(r).length>1) // tolera 1 obrigatório faltando
     .sort((a,b)=>chaveData(a.DATA_FECHAMENTO).localeCompare(chaveData(b.DATA_FECHAMENTO)));
-  const pendentes = pendTodas.filter(r=>docsObrigFaltantes(r).length===0);
+  const pendentes = pendTodas.filter(r=>docsObrigFaltantes(r).length<=1); // com até 1 faltando, segue o fluxo
   // PRIORIDADE sempre no topo da lista de abertura
   const ehPri = r=>String(r.PRIORIDADE||'')==='SIM';
   // pastas já abertas (DOC OK + nº pasta) continuam visíveis para corrigir erros
@@ -1642,7 +1642,7 @@ function renderizar(){
 
   /* --- passivo (totais gerais, sem filtros) --- */
   const stIniPassivo = r => { const s=normaliza(r.INICIAL_STATUS); return (!s||s==='AJUSTES'||s==='PENDENTE DE DOCUMENTOS'||s==='PENDENTE DE INFORMACOES')?'PENDENTE':s; };
-  const nNaoAbertas = fechados.filter(r=>!noHistorico(r) && docsObrigFaltantes(r).length===0).length;
+  const nNaoAbertas = fechados.filter(r=>!noHistorico(r) && docsObrigFaltantes(r).length<=1).length;
   const nNaoElaboradas = pastasAbertas.filter(r=>stIniPassivo(r)!=='FEITO').length;
   const nNaoAjuizadas = pastasAbertas.filter(r=>stIniPassivo(r)==='FEITO' && normaliza(r.AJUIZ_STATUS)!=='AJUIZADO').length;
   $('badgePassivo').textContent = 'PASSIVO: '+(nNaoAbertas+nNaoElaboradas+nNaoAjuizadas);
@@ -2749,9 +2749,9 @@ async function apSalvar(id){
   // não deixa marcar DOCUMENTAÇÃO OK sem todos os documentos obrigatórios anexados
   if(normaliza(situacao)==='DOCUMENTACAO OK'){
     const faltam = docsObrigFaltantes(r);
-    if(faltam.length){
+    if(faltam.length>1){ // tolera 1 obrigatório faltando; com 2 ou mais, bloqueia
       const lista = 'Obrigatórios faltando: '+faltam.join(', ');
-      alert('Esta pasta NÃO pode ser aberta: faltam documentos obrigatórios anexados na ficha.\n\n- '+faltam.join('\n- ')+'\n\nEla ficará como FALTANDO DOCUMENTAÇÃO até anexar tudo.');
+      alert('Esta pasta NÃO pode ser aberta: faltam '+faltam.length+' documentos obrigatórios anexados na ficha (o sistema tolera só 1).\n\n- '+faltam.join('\n- ')+'\n\nEla ficará como FALTANDO DOCUMENTAÇÃO até anexar.');
       loading(true,'Salvando…');
       const respF = await postAbertura({ID:id,DOC_SITUACAO:'FALTANDO DOCUMENTAÇÃO',DOC_FALTANDO:lista,PASTA_CPJ:numeroCpj,STATUS:'FECHOU (PENDENTE DE DOCS)'},'FALTANDO DOCUMENTAÇÃO (automático: obrigatórios sem anexo) — devolvido para Atendimentos');
       loading(false);
