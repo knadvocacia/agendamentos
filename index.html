@@ -1871,7 +1871,7 @@ const RES_AGENDOU     = ['AGENDADO','ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCA
 function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'||st==='PENDENTE DE DOCUMENTO'}
 function listaConferentes(){
   const mapa = new Map(); // chave normalizada -> grafia preferida (as do rodízio primeiro)
-  const poe = n => {n=String(n||'').trim();if(!n)return;const c=normaliza(n);if(!mapa.has(c))mapa.set(c,n)};
+  const poe = n => {n=String(n||'').trim();if(!n)return;const c=chaveNome(n);if(!mapa.has(c))mapa.set(c,n)};
   conferentesServidor.forEach(poe);
   conferentesExtras.forEach(poe);
   registros.forEach(r=>{poe(r.CONF_RESP);poe(r.INICIAL_RESP)});
@@ -1909,6 +1909,7 @@ async function dividirConferencias(){
     await carregar();
   }else toast('Erro: '+(r.erro||'não foi possível dividir'));
 }
+function chaveNome(s){return normaliza(s).replace(/\./g,' ').replace(/\s+/g,' ').trim()} // "DRA. CARLA" = "DRA CARLA"
 let rsDados = {};   // resumo de status por responsável (montado no renderResumo)
 let rsSel = '';
 function rsSelecionar(chave){rsSel = chave; renderResumo();}
@@ -1950,7 +1951,7 @@ function renderResumo(){
   const base = (minha ? registros.filter(r=>normaliza(r.RESPONSAVEL)===normaliza(usuario.nome)) : registros)
     .filter(r=>dentro(dataISO(r.DATA)));
   let nFech=0,nSem=0,nNao=0;
-  const esconde = chave => ocultosResumoCache.some(n=>normaliza(n)===chave);
+  const esconde = chave => ocultosResumoCache.some(n=>chaveNome(n)===chave);
   const porResp = {};
   base.forEach(r=>{
     const st = normaliza(r.STATUS);
@@ -1959,9 +1960,9 @@ function renderResumo(){
     else if(RES_NAO_FECHOU.includes(st))nNao++;
     // demais status (em andamento) e sem status ficam FORA do resumo e do total
     const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
-    const chave = normaliza(bruto); // mesma pessoa escrita diferente conta junto
+    const chave = chaveNome(bruto); // mesma pessoa escrita diferente (ponto/espaço/acento) conta junto
     if(esconde(chave)) return; // marcado em Usuários para não aparecer no Resumo
-    const o = porResp[chave]||(porResp[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),leads:0,ligou:0,agendou:0,fechou:0});
+    const o = porResp[chave]||(porResp[chave]={nome:(responsaveisCache.find(x=>chaveNome(x)===chave)||bruto),leads:0,ligou:0,agendou:0,fechou:0});
     o.leads++;
     if(st)o.ligou++;
     if(RES_AGENDOU.includes(st))o.agendou++;
@@ -1988,9 +1989,9 @@ function renderResumo(){
   rsDados = {};
   base.forEach(r=>{
     const bruto = String(r.RESPONSAVEL||'').trim()||'(SEM RESPONSÁVEL)';
-    const chave = normaliza(bruto);
+    const chave = chaveNome(bruto);
     if(esconde(chave)) return; // marcado em Usuários para não aparecer no Resumo
-    const o = rsDados[chave]||(rsDados[chave]={nome:(responsaveisCache.find(x=>normaliza(x)===chave)||bruto),total:0,porStatus:{}});
+    const o = rsDados[chave]||(rsDados[chave]={nome:(responsaveisCache.find(x=>chaveNome(x)===chave)||bruto),total:0,porStatus:{}});
     o.total++;
     const stBruto = String(r.STATUS||'').trim();
     const stChave = stBruto ? normaliza(stBruto) : 'SEM STATUS';
@@ -2006,15 +2007,15 @@ function renderResumo(){
   renderRsDetalhe();
   // conferências e iniciais por advogada — contadas pelas PRÓPRIAS datas (conferência / FEITO)
   const porAdv = {};
-  const advRef = chave => porAdv[chave]||(porAdv[chave]={nome:(conferentesServidor.find(x=>normaliza(x)===chave)||''),conf:0,ini:0});
+  const advRef = chave => porAdv[chave]||(porAdv[chave]={nome:(conferentesServidor.find(x=>chaveNome(x)===chave)||''),conf:0,ini:0});
   registros.forEach(r=>{
     const conf = String(r.CONF_RESP||'').trim();
-    if(conf && !esconde(normaliza(conf)) && String(r.CONF_STATUS||'').trim() && dentro(dataISO(r.CONF_DATA)||dataISO(r.DATA_ABERTURA))){
-      const o=advRef(normaliza(conf)); if(!o.nome)o.nome=conf; o.conf++;
+    if(conf && !esconde(chaveNome(conf)) && String(r.CONF_STATUS||'').trim() && dentro(dataISO(r.CONF_DATA)||dataISO(r.DATA_ABERTURA))){
+      const o=advRef(chaveNome(conf)); if(!o.nome)o.nome=conf; o.conf++;
     }
     const ini = String(r.INICIAL_RESP||'').trim();
-    if(ini && !esconde(normaliza(ini)) && normaliza(r.INICIAL_STATUS)==='FEITO' && dentro(dataISO(r.DATA_FEITO))){
-      const o=advRef(normaliza(ini)); if(!o.nome)o.nome=ini; o.ini++;
+    if(ini && !esconde(chaveNome(ini)) && normaliza(r.INICIAL_STATUS)==='FEITO' && dentro(dataISO(r.DATA_FEITO))){
+      const o=advRef(chaveNome(ini)); if(!o.nome)o.nome=ini; o.ini++;
     }
   });
   const advs = Object.keys(porAdv).sort((a,b)=>(porAdv[b].conf+porAdv[b].ini)-(porAdv[a].conf+porAdv[a].ini));
