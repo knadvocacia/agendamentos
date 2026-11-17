@@ -306,7 +306,6 @@ td.acao{white-space:nowrap}
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsSel()">Excluir selecionados</button>
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsTodosUI()" title="Apaga todos os leads da lista, inclusive os já enviados aos estagiários">Excluir TODOS</button>
     </span>
-    <span style="color:var(--cinza);font-size:12px" id="dicaEstagiario">Info <b>ESTAGIÁRIO</b> = envio automático de até <b>15 leads/dia por responsável</b> (estagiários e advogados) na aba Atendimentos, de <b>segunda a sexta</b>, sem duplicidade (cada lead vai 1 única vez) · lead com <b>praça</b> só vai para estagiário da mesma praça</span>
     <datalist id="dlInfo"><option value="ROBO"><option value="ESTAGIÁRIO"></datalist>
     <div class="direita" style="align-items:flex-end">
       <span style="display:flex;flex-direction:column;gap:4px;align-items:stretch">
@@ -888,7 +887,7 @@ td.acao{white-space:nowrap}
     <div class="res-card rc-amarelo"><b id="resSemContato">0</b><span>N&atilde;o conseguiu contato</span></div>
     <div class="res-card rc-vermelho"><b id="resNaoFechou">0</b><span>N&atilde;o fechou</span></div>
   </div>
-  <div style="font-size:11px;color:var(--cinza);margin:-6px 0 10px">Leads no per&iacute;odo = fecharam + n&atilde;o conseguiu contato + n&atilde;o fechou (e os % s&atilde;o sobre essa soma). Ficam fora: Agendado, Atendimento Whats/Voz, Em an&aacute;lise, Retornar, Pendente, Marcado outro dia e sem status.</div>
+  <div style="font-size:11px;color:var(--cinza);margin:-6px 0 10px">Leads no per&iacute;odo = fecharam + n&atilde;o conseguiu contato + n&atilde;o fechou (e os % s&atilde;o sobre essa soma). Ficam fora: Agendado, Atendimento Whats/Voz, Em an&aacute;lise, Retornar, Vai pensar, Pendente, Marcado outro dia e sem status.</div>
   <div id="resFila" style="font-size:12.5px;color:var(--cinza);margin:2px 0 10px"></div>
   <div class="res-duas">
     <div class="tabela-wrap">
@@ -898,7 +897,7 @@ td.acao{white-space:nowrap}
         <tbody id="corpoResResp"></tbody>
       </table>
       <div class="vazio" id="vazioResResp" style="display:none">Nenhum lead no per&iacute;odo.</div>
-      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Agendado, Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, desligou na cara, BO, distrato, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
+      <div class="res-legenda">LIGOU = lan&ccedil;ou qualquer status no lead &middot; AGENDOU = atendimento marcado/realizado (Agendado, Atendimento Whats/Voz, Marcado outro dia, Pendente assinatura/documento ou Fechou) &middot; FECHOU = fechou, fechou (pendente de docs) ou pendente de documento &middot; N&Atilde;O FECHOU = pendente assinatura, sem interesse, sem direito, desligou na cara, BO, distrato, j&aacute; &eacute; cliente, prescrito ou j&aacute; tem a&ccedil;&atilde;o &middot; N&Atilde;O CONSEGUIU CONTATO = tentou ligar, telefone errado ou indispon&iacute;vel.</div>
     </div>
     <div class="tabela-wrap">
       <div class="res-titulo">Resumo de status por respons&aacute;vel</div>
@@ -1165,6 +1164,8 @@ const STATUS_CORES = {
   'DESLIGOU NA CARA':'vermelho',
   'BO':'vermelho',
   'DISTRATO':'vermelho',
+  'JÁ É CLIENTE':'vermelho',
+  'VAI PENSAR':'amarelo',
   'TENTOU LIGAR E ENVIOU MSG':'amarelo',
   'TENTOU LIGAR E NÃO ENVIOU MENSAGEM':'amarelo',
   'ATENDIMENTO WHATS':'azul',
@@ -1865,7 +1866,7 @@ let resumoIniciado = false;
 // NÃO FECHOU = pendente assinatura, sem interesse, sem direito, prescrito, já tem ação
 // FORA DO RESUMO = atendimento whats/voz, em análise, retornar, pendente, marcado outro dia e sem status
 const RES_SEM_CONTATO = ['TENTOU LIGAR E ENVIOU MSG','TENTOU LIGAR E NAO ENVIOU MENSAGEM','TELEFONE ERRADO','INDISPONIVEL'];
-const RES_NAO_FECHOU  = ['PENDENTE ASSINATURA','SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','BO','DISTRATO','PRESCRITO','JA TEM ACAO'];
+const RES_NAO_FECHOU  = ['PENDENTE ASSINATURA','SEM INTERESSE','SEM DIREITO','DESLIGOU NA CARA','BO','DISTRATO','JA E CLIENTE','PRESCRITO','JA TEM ACAO'];
 const RES_AGENDOU     = ['AGENDADO','ATENDIMENTO WHATS','ATENDIMENTO VOZ','MARCADO OUTRO DIA','PENDENTE ASSINATURA','PENDENTE DE DOCUMENTO','FECHOU','FECHOU (PENDENTE DE DOCS)'];
 function resFechou(st){return st==='FECHOU'||st==='FECHOU (PENDENTE DE DOCS)'||st==='PENDENTE DE DOCUMENTO'}
 function listaConferentes(){
@@ -2613,16 +2614,35 @@ async function salvarInicialObs(id){
 }
 
 async function postHist(registro,acao,aba){
-  // salva um atendimento registrando o movimento no histórico; implantação antiga cai no salvar comum
-  let r = await apiPost({action:'salvarHist',registro,acao,aba,usuario:usuario?usuario.nome:''});
-  if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvar',registro});
-  return r;
+  // salva um atendimento registrando o movimento no histórico; implantação antiga cai no salvar comum.
+  // Nunca estoura exceção (a tela não fica presa no "carregando"), e se o sistema
+  // estiver ocupado (trava/distribuição), espera um instante e tenta mais 1 vez.
+  const t0 = performance.now();
+  try{
+    let r = await apiPost({action:'salvarHist',registro,acao,aba,usuario:usuario?usuario.nome:''});
+    if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvar',registro});
+    if(!r.ok && /ocupad/i.test(String(r.erro||''))){
+      await new Promise(f=>setTimeout(f,2500));
+      r = await apiPost({action:'salvarHist',registro,acao,aba,usuario:usuario?usuario.nome:''});
+    }
+    const t = Math.round(performance.now()-t0);
+    if(t>4000) console.log('[salvar] '+t+' ms no total · espera na fila do servidor: '+(r&&r.tFilaMs!=null?r.tFilaMs:'?')+' ms · gravação: '+(r&&r.tSrvMs!=null?r.tSrvMs:'?')+' ms');
+    return r;
+  }catch(e){
+    console.error('[salvar] falha de conexão', e);
+    return {ok:false, erro:'Falha de conexão ao salvar — tente novamente'};
+  }
 }
 async function postAbertura(registro,acao){return postHist(registro,acao,'ABERTURA DE PASTA')}
 async function postLeadHist(registro,acao){
-  let r = await apiPost({action:'salvarLeadHist',registro,acao,usuario:usuario?usuario.nome:''});
-  if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvarLead',registro});
-  return r;
+  try{
+    let r = await apiPost({action:'salvarLeadHist',registro,acao,usuario:usuario?usuario.nome:''});
+    if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvarLead',registro});
+    return r;
+  }catch(e){
+    console.error('[salvar lead] falha de conexão', e);
+    return {ok:false, erro:'Falha de conexão ao salvar — tente novamente'};
+  }
 }
 async function postAgHist(registro,acao){
   let r = await apiPost({action:'salvarAgHist',registro,acao,usuario:usuario?usuario.nome:''});
@@ -3017,7 +3037,7 @@ function renderLeads(){
   if(window.atualizarIconesFiltro)atualizarIconesFiltro();
   const estag = souEstagiario();
   // estagiário só trabalha a própria fila: esconde criação/importação/atribuição
-  ['btnNovoLead','boxAtribuir','dicaEstagiario'].forEach(id=>{
+  ['btnNovoLead','boxAtribuir'].forEach(id=>{
     const el=$(id); if(el) el.style.display = estag?'none':'';
   });
   const base = estag ? leadRegistros.filter(r=>normaliza(r.ATENDENTE)===normaliza(usuario.nome)) : leadRegistros;
@@ -3325,6 +3345,20 @@ async function excluirLead(id){
   else toast('Erro: '+resp.erro);
 }
 
+function dataImportBR(bruto,texto){
+  // normaliza a data vinda do Excel/CSV para dd/mm/aaaa (aceita Date, número serial ou texto)
+  if(bruto instanceof Date && !isNaN(bruto)) return fmtData(bruto);
+  if(typeof bruto==='number' && bruto>20000 && bruto<60000){
+    const d=new Date(Date.UTC(1899,11,30)+Math.round(bruto)*86400000);
+    return ('0'+d.getUTCDate()).slice(-2)+'/'+('0'+(d.getUTCMonth()+1)).slice(-2)+'/'+d.getUTCFullYear();
+  }
+  const t=String(texto||bruto||'').trim();
+  let m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){const a=m[3].length===2?'20'+m[3]:m[3];return ('0'+m[1]).slice(-2)+'/'+('0'+m[2]).slice(-2)+'/'+a}
+  m=t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m)return m[3]+'/'+m[2]+'/'+m[1];
+  return '';
+}
 function statusImportValido(v){
   // casa o texto importado com um status conhecido do sistema (aceita plural: AGENDADOS)
   const n = normaliza(v); if(!n) return '';
@@ -3342,9 +3376,11 @@ function importarLeads(input){
   if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
-    const wb=XLSX.read(e.target.result,{type:'array'});
-    const linhas=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''})
-      .filter(l=>l.some(c=>String(c).trim()!==''));
+    const wb=XLSX.read(e.target.result,{type:'array',cellDates:true});
+    const fmt=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''});
+    const bru=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
+    const pares=fmt.map((l,i)=>({f:l,r:bru[i]||[]})).filter(p=>p.f.some(c=>String(c).trim()!==''));
+    const linhas=pares.map(p=>p.f);
     if(!linhas.length){toast('Arquivo vazio');return}
     // detecta cabeçalho e a posição de cada coluna (INFO = ROBO/ESTAGIÁRIO)
     const cab = linhas[0].map(normaliza);
@@ -3377,29 +3413,34 @@ function importarLeads(input){
         if(pConteudo>=0)idx.INFO=pConteudo;
       }
     }
-    const dados = (temCab?linhas.slice(1):linhas).filter(l=>String(l[idx.NOME]||'').trim());
-    if(!dados.length){toast('Nenhuma linha com nome preenchido');return}
-    const regs = dados.map(l=>({
+    const corpo = (temCab?pares.slice(1):pares).filter(p=>String(p.f[idx.NOME]||'').trim());
+    if(!corpo.length){toast('Nenhuma linha com nome preenchido');return}
+    const regs = corpo.map(p=>{const l=p.f, lb=p.r; return {
       NOME:String(l[idx.NOME]||'').trim(),
       TELEFONE:String(l[idx.TELEFONE]||'').trim(),
       EMPRESA:String(l[idx.EMPRESA]||'').trim(),
       // DATA fica em branco: será preenchida com o dia do envio ao estagiário;
       // a BASE (mês/ano da importação) é gravada automaticamente pelo servidor
       PRACA:idx.PRACA>=0?pracaPadrao(l[idx.PRACA]):'', // fora do padrão RJ/CTBA/SP/FOR fica em branco
-      ATENDENTE:infoValida(l[idx.INFO])||'',
+      // a coluna de Info/Estagiário aceita ROBO, ESTAGIÁRIO ou o NOME de um usuário
+      // cadastrado ("dra vanusa" → DRA. VANUSA): o lead vai direto para essa pessoa
+      ATENDENTE:infoValida(l[idx.INFO])||usuarioDoSistema(String(l[idx.INFO]||''))||'',
       STATUS_INICIAL:pSt>=0?statusImportValido(l[pSt]):'', // vira o status do atendimento ao distribuir
-      AREA:pAr>=0?areaImportValida(l[pAr]):''
-    }));
+      AREA:pAr>=0?areaImportValida(l[pAr]):'',
+      DATA:idx.DATA>=0?dataImportBR(lb[idx.DATA],l[idx.DATA]):'' // data trazida na planilha (ex.: dia do agendamento)
+    };});
     const nEst = regs.filter(r=>r.ATENDENTE==='ESTAGIÁRIO').length;
     const nRobo = regs.filter(r=>r.ATENDENTE==='ROBO').length;
     const nComSt = regs.filter(r=>r.STATUS_INICIAL).length;
     const nComAr = regs.filter(r=>r.AREA).length;
+    const nDir = regs.filter(r=>r.ATENDENTE && r.ATENDENTE!=='ROBO' && r.ATENDENTE!=='ESTAGIÁRIO').length;
     if(!confirm('Importar '+regs.length+' lead(s)?'+
       (nEst||nRobo?'\n\nInfo detectada: '+nEst+' ESTAGIÁRIO · '+nRobo+' ROBO'+
       (nEst?'\nOs de ESTAGIÁRIO serão distribuídos automaticamente (até 15/dia por estagiário) na aba Atendimentos.':'')
       :'\n\nAtenção: nenhuma coluna de Info (ROBO/ESTAGIÁRIO) foi encontrada na planilha.')+
       (nComSt?'\n'+nComSt+' com STATUS já definido (ex.: AGENDADO) — o atendimento já nasce com ele.':'')+
-      (nComAr?'\n'+nComAr+' com ÁREA (trabalhista/previdenciário).':'')))return;
+      (nComAr?'\n'+nComAr+' com ÁREA (trabalhista/previdenciário).':'')+
+      (nDir?'\n'+nDir+' direcionados a uma pessoa — os que já têm status vão NA HORA para a lista dela, fora da cota diária.':'')))return;
     (async()=>{
       loading(true,'Importando '+regs.length+' leads…');
       const resp = await apiPost({action:'salvarLeadsLote',registros:regs,senhaMaster:usuario.senha});
