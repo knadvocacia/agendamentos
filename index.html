@@ -271,7 +271,6 @@ td.acao{white-space:nowrap}
       <button class="btn-topo" id="btnUsuarios" style="display:none" onclick="abrirUsuarios()" title="Adicionar usuários e senhas">&#128101; Usuários</button>
       <button class="btn-topo" onclick="sair()">Sair</button>
     </div>
-    <div class="passivo-badge" id="badgePassivo" title="Pastas não abertas + iniciais não elaboradas + iniciais não ajuizadas">PASSIVO: 0</div>
   </div>
   <div class="marca">
     <div>
@@ -307,6 +306,7 @@ td.acao{white-space:nowrap}
       <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirLeadsTodosUI()" title="Apaga todos os leads da lista, inclusive os já enviados aos estagiários">Excluir TODOS</button>
     </span>
     <datalist id="dlInfo"><option value="ROBO"><option value="ESTAGIÁRIO"></datalist>
+    <span id="totLeads" style="font-size:12.5px;font-weight:700;color:var(--navy);white-space:nowrap" title="Quantidade de leads na aba (fila + enviados); com filtros ativos mostra quantos estão na tela"></span>
     <div class="direita" style="align-items:flex-end">
       <span style="display:flex;flex-direction:column;gap:4px;align-items:stretch">
         <button class="btn btn-mini btn-borda doc-add master-so" style="position:relative;display:none">
@@ -1648,7 +1648,6 @@ function renderizar(){
   const nNaoAbertas = fechados.filter(r=>!noHistorico(r) && (docsObrigFaltantes(r).length<=1 || normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK')).length;
   const nNaoElaboradas = pastasAbertas.filter(r=>stIniPassivo(r)!=='FEITO').length;
   const nNaoAjuizadas = pastasAbertas.filter(r=>stIniPassivo(r)==='FEITO' && normaliza(r.AJUIZ_STATUS)!=='AJUIZADO').length;
-  $('badgePassivo').textContent = 'PASSIVO: '+(nNaoAbertas+nNaoElaboradas+nNaoAjuizadas);
   const historico = pastasAbertas.filter(r=>
     (!mesAp || dataISO(r.DATA_ABERTURA).slice(0,7)===mesAp));
   pendentes.sort((a,b)=>((ehPri(a)?'0':'1')+chaveData(a.DATA_FECHAMENTO)).localeCompare((ehPri(b)?'0':'1')+chaveData(b.DATA_FECHAMENTO)));
@@ -3093,6 +3092,9 @@ function renderLeads(){
     </tr>`}).join('');
   window.leadVisiveisIds = visiveis.map(r=>r.ID);
   $('vazioLead').style.display = visiveis.length?'none':'block';
+  const elTot = $('totLeads');
+  // o total acompanha o filtro: com filtros ativos, mostra a quantidade filtrada
+  if(elTot) elTot.textContent = 'TOTAL: '+visiveis.length+' LEAD'+(visiveis.length===1?'':'S');
   // passivo: leads sem info definida
   $('contLead').textContent = leadRegistros.filter(r=>!String(r.ATENDENTE||'').trim()).length;
   atualizarBtnAtribuir();
