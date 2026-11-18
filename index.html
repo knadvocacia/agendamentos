@@ -974,6 +974,7 @@ td.acao{white-space:nowrap}
             <option value="INDICAÇÃO">INDICAÇÃO</option>
             <option value="LEAD">LEAD</option>
             <option value="ROBÔ DE ATENDIMENTO">ROBÔ DE ATENDIMENTO</option>
+            <option value="3C">3C</option>
           </select>
         </div>
         <div class="campo-cond campo" id="cond_DOCSIT">
@@ -1631,9 +1632,10 @@ function renderizar(){
   const pendTodas = listaAbertura.filter(r=>!noHistorico(r));
   // só chega na Abertura o FECHOU com TODOS os documentos obrigatórios anexados;
   // sem os docs, o cliente fica com o estagiário na aba Atendimentos (lista "aguardando")
-  const aguardandoDocs = pendTodas.filter(r=>docsObrigFaltantes(r).length>1) // tolera 1 obrigatório faltando
+  const docOkJa = r=>normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK'; // ex.: validada pelo master
+  const aguardandoDocs = pendTodas.filter(r=>docsObrigFaltantes(r).length>1 && !docOkJa(r)) // tolera 1 obrigatório faltando
     .sort((a,b)=>chaveData(a.DATA_FECHAMENTO).localeCompare(chaveData(b.DATA_FECHAMENTO)));
-  const pendentes = pendTodas.filter(r=>docsObrigFaltantes(r).length<=1); // com até 1 faltando, segue o fluxo
+  const pendentes = pendTodas.filter(r=>docsObrigFaltantes(r).length<=1 || docOkJa(r)); // até 1 faltando (ou validada): segue
   // PRIORIDADE sempre no topo da lista de abertura
   const ehPri = r=>String(r.PRIORIDADE||'')==='SIM';
   // pastas já abertas (DOC OK + nº pasta) continuam visíveis para corrigir erros
@@ -1643,7 +1645,7 @@ function renderizar(){
 
   /* --- passivo (totais gerais, sem filtros) --- */
   const stIniPassivo = r => { const s=normaliza(r.INICIAL_STATUS); return (!s||s==='AJUSTES'||s==='PENDENTE DE DOCUMENTOS'||s==='PENDENTE DE INFORMACOES')?'PENDENTE':s; };
-  const nNaoAbertas = fechados.filter(r=>!noHistorico(r) && docsObrigFaltantes(r).length<=1).length;
+  const nNaoAbertas = fechados.filter(r=>!noHistorico(r) && (docsObrigFaltantes(r).length<=1 || normaliza(r.DOC_SITUACAO)==='DOCUMENTACAO OK')).length;
   const nNaoElaboradas = pastasAbertas.filter(r=>stIniPassivo(r)!=='FEITO').length;
   const nNaoAjuizadas = pastasAbertas.filter(r=>stIniPassivo(r)==='FEITO' && normaliza(r.AJUIZ_STATUS)!=='AJUIZADO').length;
   $('badgePassivo').textContent = 'PASSIVO: '+(nNaoAbertas+nNaoElaboradas+nNaoAjuizadas);
@@ -1947,7 +1949,7 @@ function renderResumo(){
   }
   const de=$('fResDe').value, ate=$('fResAte').value;
   const dentro = iso => (!de || (iso && iso>=de)) && (!ate || (iso && iso<=ate));
-  const minha = veSoProprios();
+  const minha = false; // a aba Resumo é gerencial: quem a recebe (em Usuários) vê os números completos
   const base = (minha ? registros.filter(r=>normaliza(r.RESPONSAVEL)===normaliza(usuario.nome)) : registros)
     .filter(r=>dentro(dataISO(r.DATA)));
   let nFech=0,nSem=0,nNao=0;
@@ -2620,11 +2622,13 @@ async function postHist(registro,acao,aba){
   // estiver ocupado (trava/distribuição), espera um instante e tenta mais 1 vez.
   const t0 = performance.now();
   try{
-    let r = await apiPost({action:'salvarHist',registro,acao,aba,usuario:usuario?usuario.nome:''});
-    if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvar',registro});
+    const pl = {action:'salvarHist',registro,acao,aba,usuario:usuario?usuario.nome:''};
+    if(usuario && usuario.master) pl.senhaMaster = usuario.senha; // libera as exceções do master no servidor
+    let r = await apiPost(pl);
+    if(!r.ok && String(r.erro||'').includes('Ação inválida')) r = await apiPost({action:'salvar',registro,senhaMaster:pl.senhaMaster});
     if(!r.ok && /ocupad/i.test(String(r.erro||''))){
       await new Promise(f=>setTimeout(f,2500));
-      r = await apiPost({action:'salvarHist',registro,acao,aba,usuario:usuario?usuario.nome:''});
+      r = await apiPost(pl);
     }
     const t = Math.round(performance.now()-t0);
     if(t>4000) console.log('[salvar] '+t+' ms no total · espera na fila do servidor: '+(r&&r.tFilaMs!=null?r.tFilaMs:'?')+' ms · gravação: '+(r&&r.tSrvMs!=null?r.tSrvMs:'?')+' ms');
@@ -2770,7 +2774,11 @@ async function apSalvar(id){
   // não deixa marcar DOCUMENTAÇÃO OK sem todos os documentos obrigatórios anexados
   if(normaliza(situacao)==='DOCUMENTACAO OK'){
     const faltam = docsObrigFaltantes(r);
-    if(faltam.length>1){ // tolera 1 obrigatório faltando; com 2 ou mais, bloqueia
+    if(faltam.length>1 && usuario && usuario.master){
+      // exceção exclusiva do MASTER: pode validar a documentação mesmo com pendências
+      if(!confirm('Faltam '+faltam.length+' documentos obrigatórios:\n- '+faltam.join('\n- ')+'\n\nComo MASTER, você pode validar a documentação mesmo assim. Confirmar DOCUMENTAÇÃO OK?'))return;
+    }
+    else if(faltam.length>1){ // tolera 1 obrigatório faltando; com 2 ou mais, bloqueia
       const lista = 'Obrigatórios faltando: '+faltam.join(', ');
       alert('Esta pasta NÃO pode ser aberta: faltam '+faltam.length+' documentos obrigatórios anexados na ficha (o sistema tolera só 1).\n\n- '+faltam.join('\n- ')+'\n\nEla ficará como FALTANDO DOCUMENTAÇÃO até anexar.');
       loading(true,'Salvando…');
