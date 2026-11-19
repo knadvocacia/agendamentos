@@ -595,6 +595,9 @@ td.acao{white-space:nowrap}
     <div class="direita">
       <span id="resumoFiltro"></span>
       <span class="master-so" style="display:none">
+        <button class="btn btn-mini btn-borda doc-add master-so" style="position:relative;display:none" title="Devolve ao sistema registros de um backup (aba Atendimentos exportada do histórico de versões da planilha): só entram os que NÃO existem mais no sistema">
+          &#9851; Restaurar backup <input type="file" accept=".xlsx,.xls,.csv" onchange="restaurarBackup(this)">
+        </button>
         <button class="btn btn-mini btn-borda" onclick="exportarExcel('atendimentos')" title="Exportar os dados filtrados em Excel">&#11015; Excel</button>
         <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('atendimentos')" title="Exportar os dados filtrados em PDF">&#11015; PDF</button>
       </span>
@@ -1540,7 +1543,7 @@ async function excluirAtendSel(){
   if(!atendSel.size){toast('Marque ao menos um atendimento na lista');return}
   if(!confirm('Excluir '+atendSel.size+' atendimento(s) selecionado(s)? Os documentos anexados continuam no Drive. Esta ação não pode ser desfeita.'))return;
   loading(true,'Excluindo '+atendSel.size+' atendimento(s)…');
-  const resp = await apiPost({action:'excluirAtendLote',ids:[...atendSel],senhaMaster:usuario.senha});
+  const resp = await apiPost({action:'excluirAtendLote',ids:[...atendSel],senhaMaster:usuario.senha,usuario:usuario.nome});
   loading(false);
   if(resp.ok){
     registros = registros.filter(r=>!atendSel.has(r.ID));
@@ -2275,7 +2278,7 @@ async function excluirLinha(id){
   if(!r) return;
   if(!confirm('Excluir o atendimento de '+(r.NOME||'este cliente')+'?')) return;
   loading(true,'Excluindo…');
-  const resp = await apiPost({action:'excluir',id,senhaMaster:usuario.senha});
+  const resp = await apiPost({action:'excluir',id,senhaMaster:usuario.senha,usuario:usuario.nome});
   loading(false);
   if(resp.ok){registros=registros.filter(x=>x.ID!==id);renderizar();toast('Excluído')}
   else toast('Erro: '+resp.erro);
@@ -2285,7 +2288,7 @@ async function excluirRegistro(){
   if(!fichaAtual) return;
   if(!confirm('Excluir o atendimento de '+fichaAtual.NOME+'?')) return;
   loading(true,'Excluindo…');
-  const r = await apiPost({action:'excluir',id:fichaAtual.ID,senhaMaster:usuario.senha});
+  const r = await apiPost({action:'excluir',id:fichaAtual.ID,senhaMaster:usuario.senha,usuario:usuario.nome});
   loading(false);
   if(r.ok){registros=registros.filter(x=>x.ID!==fichaAtual.ID);fecharModal('mFicha');renderizar();toast('Excluído')}
   else toast('Erro: '+r.erro);
@@ -2750,6 +2753,44 @@ function renderMovAb(){
   $('vazioMovAb').style.display = vis.length?'none':'block';
 }
 
+async function restaurarBackup(input){
+  const f = input.files[0]; input.value='';
+  if(!f || !usuario || !usuario.master) return;
+  loading(true,'Lendo backup…');
+  let linhas;
+  try{
+    const wb = XLSX.read(await f.arrayBuffer(),{type:'array'});
+    linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''});
+  }catch(e){loading(false);toast('Não consegui ler o arquivo');return}
+  loading(false);
+  if(!linhas || linhas.length<2){toast('Planilha vazia');return}
+  const cab = linhas[0].map(c=>String(c).trim());
+  const iID = cab.findIndex(c=>normaliza(c)==='ID');
+  if(iID<0){toast('Este arquivo não parece ser a aba Atendimentos da planilha (não achei a coluna ID)');return}
+  const atuais = new Set(registros.map(r=>String(r.ID)));
+  const regsNovos = [];
+  for(let i=1;i<linhas.length;i++){
+    const l = linhas[i];
+    const id = String(l[iID]||'').trim();
+    if(!id || atuais.has(id)) continue;
+    const reg = {};
+    cab.forEach((h,j)=>{ if(h) reg[h] = String(l[j]??'').trim(); });
+    regsNovos.push(reg);
+  }
+  if(!regsNovos.length){toast('Todos os registros do backup já existem no sistema — nada a restaurar');return}
+  if(!confirm(regsNovos.length+' registro(s) do backup NÃO existem mais no sistema e serão devolvidos.\n\nQuem já existe não é alterado em nada.\n\nRestaurar agora?'))return;
+  loading(true,'Restaurando '+regsNovos.length+' registro(s)…');
+  let total=0, erro='';
+  for(let i=0;i<regsNovos.length;i+=100){
+    const r = await apiPost({action:'restaurarAtendLote',registros:regsNovos.slice(i,i+100),senhaMaster:usuario.senha,usuario:usuario.nome});
+    if(r && r.ok) total += (r.restaurados||0);
+    else { erro = (r&&r.erro)||'falha de conexão'; break; }
+  }
+  loading(false);
+  if(erro) toast('Erro: '+erro+(total?(' — '+total+' já haviam sido restaurados'):''));
+  else toast(total+' registro(s) restaurados com sucesso');
+  await carregar();
+}
 async function desfazerMov(idMov){
   if(!confirm('Desfazer este movimento? A pasta voltará ao estado anterior a ele.'))return;
   loading(true,'Desfazendo…');
