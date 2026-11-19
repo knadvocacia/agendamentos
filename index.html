@@ -1541,7 +1541,16 @@ async function salvarAtendLote(){
 
 async function excluirAtendSel(){
   if(!atendSel.size){toast('Marque ao menos um atendimento na lista');return}
-  if(!confirm('Excluir '+atendSel.size+' atendimento(s) selecionado(s)? Os documentos anexados continuam no Drive. Esta ação não pode ser desfeita.'))return;
+  // selecionados que NÃO estão na tela (sobraram de uma filtragem anterior): o perigo clássico
+  const fora = [...atendSel].filter(id=>!visAtendIds.has(String(id)));
+  if(fora.length){
+    if(!confirm('ATENÇÃO: '+fora.length+' do(s) '+atendSel.size+' selecionado(s) NÃO estão na tela agora — ficaram marcados de uma filtragem anterior.\n\nRecomendado: clicar em Cancelar e desmarcar tudo (caixa do topo da lista) antes de excluir.\n\nContinuar mesmo assim?'))return;
+  }
+  if(!confirm('Excluir '+atendSel.size+' atendimento(s) selecionado(s)? Os documentos anexados continuam no Drive. (Agora a exclusão fica no Histórico e pode ser desfeita.)'))return;
+  if(atendSel.size>10){
+    const dig = prompt('Você está excluindo '+atendSel.size+' registros DE UMA VEZ.\nPara confirmar, digite: EXCLUIR');
+    if(normaliza(dig||'')!=='EXCLUIR'){toast('Exclusão cancelada');return}
+  }
   loading(true,'Excluindo '+atendSel.size+' atendimento(s)…');
   const resp = await apiPost({action:'excluirAtendLote',ids:[...atendSel],senhaMaster:usuario.senha,usuario:usuario.nome});
   loading(false);
@@ -1584,6 +1593,7 @@ function renderizar(){
   visiveis.sort((a,b)=>(chaveData(a.DATA)+' '+(a.HORARIO||'')).localeCompare(chaveData(b.DATA)+' '+(b.HORARIO||'')));
   const corpo = $('corpoAtend');
   const hojeISO = new Date().toISOString().slice(0,10);
+  visAtendIds = new Set(visiveis.map(r=>String(r.ID)));
   corpo.innerHTML = visiveis.map(r=>{
     let cor = STATUS_CORES[normaliza(r.STATUS)]||'';
     const extra = [];
@@ -2721,6 +2731,7 @@ function renderBaseLeads(){
   dadosExport.baseLeads = vis; // exporta exatamente o que está filtrado na tela
 }
 
+let visAtendIds = new Set(); // IDs atualmente na tela da aba Atendimentos
 let movsCache = [];
 async function abrirMovAbertura(filtroAba){
   loading(true,'Carregando histórico…');
@@ -4330,6 +4341,13 @@ function sair(){
 
 function trocarAba(nome){
   if(usuario && !podeAba(nome)) return;
+  // ao trocar de aba, limpa TODAS as seleções (evita marcação fantasma de uma tela anterior)
+  if(atendSel.size || leadSel.size){
+    atendSel.clear();
+    leadSel.clear();
+    renderizar();
+    renderLeads();
+  }
   document.querySelectorAll('.aba').forEach(b=>b.classList.toggle('ativa',b.dataset.aba===nome));
   document.querySelectorAll('.painel').forEach(p=>p.classList.remove('ativo'));
   $('painel-'+nome).classList.add('ativo');
