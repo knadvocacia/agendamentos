@@ -631,7 +631,7 @@ td.acao{white-space:nowrap}
           <th><input data-f="TELEFONE" placeholder="Filtrar"></th>
           <th><input data-f="EMPRESA" placeholder="Filtrar"></th>
           <th><input data-f="RESPONSAVEL" placeholder="Filtrar"></th>
-          <th><input data-f="PASTA" placeholder="Filtrar"></th>
+          <th><input data-f="PASTA" list="dlVazio" placeholder="Filtrar" title="Digite parte do nº da pasta, ou escolha (VAZIO) para ver só os lançamentos SEM pasta"></th>
           <th><input data-f="DATA_SAIDA" placeholder="Filtrar"></th>
           <th></th>
           <th><input data-f="OBSERVACOES" placeholder="Filtrar"></th>
@@ -923,6 +923,7 @@ td.acao{white-space:nowrap}
 </section>
 
 <datalist id="dlConferentes"></datalist>
+<datalist id="dlVazio"><option value="(VAZIO)"></datalist>
 
 </main>
 
@@ -1588,7 +1589,7 @@ function renderizar(){
     return (!mes || dISO.slice(0,7)===mes) &&
       (!dDe || (dISO && dISO>=dDe)) &&
       (!dAte || (dISO && dISO<=dAte)) &&
-      Object.entries(f).every(([c,v])=>normaliza(r[c]).includes(v));
+      Object.entries(f).every(([c,v])=>v==='(VAZIO)' ? !normaliza(r[c]) : normaliza(r[c]).includes(v));
   });
   visiveis.sort((a,b)=>(chaveData(a.DATA)+' '+(a.HORARIO||'')).localeCompare(chaveData(b.DATA)+' '+(b.HORARIO||'')));
   const corpo = $('corpoAtend');
