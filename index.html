@@ -263,11 +263,11 @@ td.acao{white-space:nowrap}
     <div class="topo-dir-linha">
       <span id="usuLogado"></span>
       <span id="ultimaSync" style="font-size:11px;color:#b9b2a4;align-self:center" title="Toda alteração é salva na nuvem na hora em que você clica em Salvar; este é o horário da última leitura dos dados"></span>
-      <button class="btn-topo" onclick="abrirMovAbertura('')" title="Movimentos de todas as abas — desfazer devolve o registro ao estado anterior">&#128336; Histórico</button>
+      <button class="btn-topo master-so" style="display:none" onclick="abrirMovAbertura('')" title="Movimentos de todas as abas — desfazer devolve o registro ao estado anterior (somente o master)">&#128336; Histórico</button>
       <button class="btn-topo" id="btnSync" onclick="sincronizar(false)" title="Busca agora os dados mais recentes da nuvem — tudo o que qualquer computador salvou aparece aqui">&#9729; Sincronizar</button>
       <button class="btn-topo" id="btnBaseLeads" style="display:none" onclick="abrirBaseLeads()" title="Todos os leads já importados ao sistema — nenhum é perdido, mesmo excluído da aba Lead">&#128218; Base de Leads</button>
       <button class="btn-topo" id="btnAjuizados" style="display:none" onclick="abrirAjuizados()" title="Todos os processos com status AJUIZADO — somente o master">&#9878; Ajuizados</button>
-      <button class="btn-topo" id="btnConfig" style="display:none" onclick="abrirConfig()" title="Regras de distribuição da conferência — somente o master">&#9881; Configurações</button>
+      <button class="btn-topo" id="btnConfig" style="display:none" onclick="abrirConfig()" title="Regras de distribuição das iniciais — somente o master">&#9881; Configurações</button>
       <button class="btn-topo" id="btnUsuarios" style="display:none" onclick="abrirUsuarios()" title="Adicionar usuários e senhas">&#128101; Usuários</button>
       <button class="btn-topo" onclick="sair()">Sair</button>
     </div>
@@ -281,7 +281,6 @@ td.acao{white-space:nowrap}
     <button class="aba" data-aba="lead" onclick="trocarAba('lead')">Lead <span class="cont" id="contLead">0</span></button>
     <button class="aba ativa" data-aba="atendimentos" onclick="trocarAba('atendimentos')">Atendimentos <span class="cont" id="contAtend">0</span></button>
     <button class="aba" data-aba="abertura" onclick="trocarAba('abertura')">Abertura de Pasta <span class="cont" id="contAbertura">0</span></button>
-    <button class="aba" data-aba="conferencia" onclick="trocarAba('conferencia')">Conferência <span class="cont" id="contConf">0</span></button>
     <button class="aba" data-aba="iniciais" onclick="trocarAba('iniciais')">Iniciais para elaborar <span class="cont" id="contIniciais">0</span></button>
     <button class="aba" data-aba="ajuizamento" onclick="trocarAba('ajuizamento')">Ajuizamento <span class="cont" id="contAjuiz">0</span></button>
     <button class="aba" data-aba="resumo" onclick="trocarAba('resumo')">&#128202; Resumo</button>
@@ -583,6 +582,12 @@ td.acao{white-space:nowrap}
     <button class="btn btn-principal" onclick="abrirFicha()">+ Novo atendimento</button>
     <button class="btn btn-mini btn-borda" onclick="abrirEditarAtendLote()" id="btnAtendLote">Editar selecionados (0)</button>
     <button class="btn btn-mini btn-perigo master-so" style="display:none" onclick="excluirAtendSel()">Excluir selecionados</button>
+    <span id="meuMes" style="display:none;gap:6px;align-items:center">
+      <span style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--navy)">MEU M&Ecirc;S:</span>
+      <span class="fechados-badge" id="mmFechou" title="Seus clientes do mês com FECHOU (inclui fechou pendente de docs e pendente de documento)">FECHOU: 0</span>
+      <span class="fechados-badge badge-neutro" id="mmNaoTrab" title="Seus leads do mês ainda SEM STATUS — coloque os status em dia">N&Atilde;O TRABALHADO: 0</span>
+      <span class="fechados-badge badge-vermelho" id="mmNaoFechou" title="Seus leads do mês que não fecharam: pendente assinatura, sem interesse, sem direito, desligou na cara, BO, distrato, já é cliente, prescrito ou já tem ação">N&Atilde;O FECHOU: 0</span>
+    </span>
     <span class="fechados-badge" id="badgeFechados" onclick="filtrarAtendPorBadge('FECHOU','')" title="Clique para ver a lista dos fechados">CLIENTES FECHADOS: 0</span>
     <span class="fechados-badge badge-amarelo" id="badgeFechFaltDoc" onclick="filtrarAtendPorBadge('FECHOU','FALTANDO DOCUMENTAÇÃO')" title="Clique para ver a lista">FECHADOS FALTANDO DOCS: 0</span>
     <span class="fechados-badge badge-azul" id="badgeNovos" style="display:none;background:var(--azul-bg);color:var(--azul-tx);border-color:var(--azul-bd)" title="Atendimentos agendados para você que ainda não foram abertos">&#128276; NOVOS AGENDADOS: 0</span>
@@ -671,7 +676,7 @@ td.acao{white-space:nowrap}
         <button class="btn btn-mini btn-borda" onclick="exportarExcel('abertura')" title="Exportar a lista visível em Excel">&#11015; Excel</button>
         <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('abertura')" title="Exportar a lista visível em PDF">&#11015; PDF</button>
       </span>
-      <button class="btn btn-mini btn-borda" onclick="abrirMovAbertura('ABERTURA DE PASTA')" title="Movimentos feitos nesta aba — desfazer devolve a pasta ao estado anterior">&#128336; Histórico</button>
+      <button class="btn btn-mini btn-borda master-so" style="display:none" onclick="abrirMovAbertura('ABERTURA DE PASTA')" title="Movimentos feitos nesta aba — desfazer devolve a pasta ao estado anterior (somente o master)">&#128336; Histórico</button>
       <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
     </div>
   </div>
@@ -730,45 +735,6 @@ td.acao{white-space:nowrap}
   </div>
 </section>
 
-<!-- ================= ABA: CONFERÊNCIA ================= -->
-<section class="painel" id="painel-conferencia">
-  <div class="barra">
-    <span style="color:var(--cinza);font-size:13px">Toda pasta aberta entra aqui já distribuída entre as conferentes — encaminhamentos diretos definidos em &#9881; Configurações; os demais em rodízio alternado · <b style="color:var(--vermelho-tx)">PENDÊNCIA DE DOCUMENTOS</b> devolve a pasta para Atendimentos como PENDENTE DE DOCUMENTO.</span>
-    <div class="direita">
-      <button class="btn btn-mini btn-principal master-so" style="display:none" onclick="dividirConferencias()" title="Divide entre as conferentes, em rodízio, todas as pendências sem nome (conferências aguardando e iniciais a elaborar) e unifica grafias (dra carla / DRA KARLA / CARLA → DRA. CARLA)">&#9878; Dividir pendências</button>
-      <button class="btn btn-mini btn-borda" onclick="carregar()">&#8635; Atualizar</button>
-    </div>
-  </div>
-  <div class="tabela-wrap">
-    <table>
-      <thead>
-        <tr class="filtros">
-          <th></th>
-          <th><input data-fc="NOME" placeholder="Filtrar"></th>
-          <th><input data-fc="EMPRESA" placeholder="Filtrar"></th>
-          <th></th>
-          <th><input data-fc="PASTA_CPJ" placeholder="Filtrar"></th>
-          <th></th>
-          <th><input data-fc="CONF_RESP" placeholder="Filtrar"></th>
-          <th><select id="fConfStatus">
-            <option value="">Todos</option>
-            <option value="__SEM__">(não conferido)</option>
-            <option value="DOCUMENTAÇÃO OK">DOCUMENTAÇÃO OK</option>
-            <option value="PENDÊNCIA DE DOCUMENTOS">PENDÊNCIA DE DOCUMENTOS</option>
-          </select></th>
-          <th><button class="btn btn-mini btn-borda" onclick="limparFiltrosConf()" title="Limpar filtros">&#10005;</button></th>
-        </tr>
-        <tr class="nomes">
-          <th>Data abertura</th><th>Reclamante</th><th>Reclamado</th><th>Telefone</th>
-          <th>Nº Pasta CPJ</th><th>Docs</th><th>Conferido por</th><th>Status</th><th>Ações</th>
-        </tr>
-      </thead>
-      <tbody id="corpoConf"></tbody>
-    </table>
-    <div class="vazio" id="vazioConf" style="display:none">Nenhuma pasta aberta para conferir.</div>
-  </div>
-</section>
-
 <!-- ================= ABA 3: INICIAIS PARA ELABORAR ================= -->
 <section class="painel" id="painel-iniciais">
   <div class="barra">
@@ -781,7 +747,8 @@ td.acao{white-space:nowrap}
       <button class="btn btn-mini btn-borda" onclick="$('filtroMesIni').value='';renderizar()" title="Ver todos os meses">Todos</button>
     </span>
     <div class="direita">
-      <span style="font-size:12px">Pastas abertas entram aqui automaticamente como PENDENTE</span>
+      <span style="font-size:12px">Pastas abertas entram aqui automaticamente como PENDENTE, já distribuídas pelas regras de &#9881; Configurações</span>
+      <button class="btn btn-mini btn-principal master-so" style="display:none" onclick="dividirConferencias()" title="Distribui as iniciais pendentes sem responsável (regras de Configurações: diretos + rodízio) e unifica grafias dos nomes">&#9878; Dividir pendências</button>
       <span class="master-so" style="display:none">
         <button class="btn btn-mini btn-borda" onclick="exportarExcel('iniciais')" title="Exportar os dados filtrados em Excel">&#11015; Excel</button>
         <button class="btn btn-mini btn-borda" onclick="exportarPdfTabela('iniciais')" title="Exportar os dados filtrados em PDF">&#11015; PDF</button>
@@ -1087,13 +1054,13 @@ td.acao{white-space:nowrap}
 <div class="modal-fundo" id="mConfig">
   <div class="modal" style="max-width:580px">
     <div class="modal-topo">
-      <h2>&#9881; Configura&ccedil;&otilde;es — distribui&ccedil;&atilde;o da confer&ecirc;ncia</h2>
+      <h2>&#9881; Configura&ccedil;&otilde;es — Distribui&ccedil;&atilde;o das Iniciais</h2>
       <button class="fechar" onclick="fecharModal('mConfig')">&times;</button>
     </div>
     <div class="modal-corpo">
       <p style="font-size:12.5px;color:var(--cinza);margin:0 0 10px">
-        Atendimentos do respons&aacute;vel da esquerda v&atilde;o <b>direto</b> para a conferente da direita, sem passar pelo rod&iacute;zio.
-        Quem n&atilde;o estiver na lista segue o <b>rod&iacute;zio alternado</b> entre as conferentes. As regras valem para as pastas novas e para o bot&atilde;o &quot;Dividir pend&ecirc;ncias&quot;.
+        As INICIAIS das pastas abertas pelos atendimentos do respons&aacute;vel da esquerda v&atilde;o <b>direto</b> para a advogada da direita, sem passar pelo rod&iacute;zio.
+        Quem n&atilde;o estiver na lista segue o <b>rod&iacute;zio alternado</b>. As regras valem para as pastas novas e para o bot&atilde;o &quot;Dividir pend&ecirc;ncias&quot; da aba Iniciais.
       </p>
       <div id="cfgLinhas"></div>
       <button class="btn btn-mini btn-borda" onclick="cfgAdd('','')">+ Adicionar regra</button>
@@ -1133,7 +1100,6 @@ td.acao{white-space:nowrap}
           <label><input type="checkbox" id="novoLead"> Lead</label>
           <label><input type="checkbox" id="novoAtend" checked> Atendimentos</label>
           <label><input type="checkbox" id="novoAbert"> Abertura de Pasta</label>
-          <label><input type="checkbox" id="novoConf"> Conferência</label>
           <label><input type="checkbox" id="novoInic"> Iniciais</label>
           <label><input type="checkbox" id="novoAjuiz"> Ajuizamento</label>
           <label><input type="checkbox" id="novoResumo"> Resumo</label>
@@ -1724,54 +1690,27 @@ function renderizar(){
   $('subHistorico').textContent = 'Pastas abertas ('+historico.length+')';
   $('contAbertura').textContent = nNaoAbertas; // pastas ainda não abertas
 
-  /* --- conferência --- */
-  const confSt = r => normaliza(r.CONF_STATUS); // '' = ainda não conferido
-  const fc = {};
-  document.querySelectorAll('[data-fc]').forEach(el=>{if(el.value)fc[el.dataset.fc]=normaliza(el.value)});
-  const stConf = $('fConfStatus').value;
-  const confVisiveis = pastasAbertas.filter(r=>{
-    if(stConf==='__SEM__'){ if(confSt(r)) return false; }
-    else if(stConf && confSt(r)!==normaliza(stConf)) return false;
-    // sem filtro de status, as já conferidas com DOCUMENTAÇÃO OK saem da lista
-    // (seguiram para Iniciais); para revê-las, escolha DOCUMENTAÇÃO OK no filtro
-    else if(!stConf && confSt(r)==='DOCUMENTACAO OK') return false;
-    return Object.entries(fc).every(([c,v])=>normaliza(r[c]).includes(v));
-  });
-  confVisiveis.sort((a,b)=>chaveData(a.DATA_ABERTURA).localeCompare(chaveData(b.DATA_ABERTURA)));
-  $('corpoConf').innerHTML = confVisiveis.map(r=>{
-    const st = confSt(r);
-    const ok = st==='DOCUMENTACAO OK';
-    const pend = st==='PENDENCIA DE DOCUMENTOS';
-    const cor = ok?'st-verde':(pend?'st-vermelho':'');
-    return `<tr class="${cor}">
-      <td>${esc(dataBR(r.DATA_ABERTURA))}</td>
-      <td><b>${esc(r.NOME)}</b></td><td>${esc(r.EMPRESA)}</td><td>${esc(r.TELEFONE)}</td>
-      <td><b>${esc(r.PASTA_CPJ)}</b></td>
-      <td><span class="docs-chip">${totalDocs(r)} arq.</span></td>
-      <td style="min-width:175px">
-        <span style="display:flex;gap:3px;align-items:center">
-          <input list="dlConferentes" id="confResp_${r.ID}" placeholder="Quem conferiu" value="${esc(r.CONF_RESP||'')}" style="width:140px" onchange="salvarConfResp('${r.ID}')" title="Digite o início do nome: os nomes já usados aparecem para escolher">
-          <button class="btn btn-mini btn-borda" onclick="novoConferente('${r.ID}')" title="Adicionar um nome novo à lista de quem confere">+</button>
-        </span>
-      </td>
-      <td style="min-width:280px">
-        <select onchange="confMudaStatus('${r.ID}',this)">
-          <option value=""></option>
-          <option value="DOCUMENTAÇÃO OK" ${ok?'selected':''}>DOCUMENTAÇÃO OK</option>
-          <option value="PENDÊNCIA DE DOCUMENTOS" ${pend?'selected':''}>PENDÊNCIA DE DOCUMENTOS</option>
-        </select>
-        <span id="confPend_${r.ID}" style="display:${pend?'flex':'none'};gap:4px;margin-top:5px;align-items:flex-end">
-          <textarea id="confObs_${r.ID}" placeholder="Descrição da pendência — pode escrever à vontade" rows="4" style="flex:1;min-width:260px;resize:vertical;font:inherit;padding:6px 8px;border:1px solid var(--linha);border-radius:6px">${esc(r.CONF_OBS||'')}</textarea>
-          <button class="btn btn-mini btn-principal" onclick="confirmarPendencia('${r.ID}')" title="Salvar a pendência e devolver a pasta para Atendimentos">Confirmar</button>
-        </span>
-      </td>
-      <td class="acao">
-        <button class="btn btn-mini btn-borda" onclick="abrirFicha('${r.ID}')" title="Abrir a ficha para conferir os documentos anexados">Ficha</button>
-        <button class="btn btn-mini btn-borda" onclick="baixarDocsZip('${r.ID}')" title="${esc(docsTitulo(r))}">&#128230; Baixar docs (ZIP)</button>
-      </td>
-    </tr>`}).join('');
-  $('vazioConf').style.display = confVisiveis.length?'none':'block';
-  $('contConf').textContent = pastasAbertas.filter(r=>confSt(r)!=='DOCUMENTACAO OK').length; // passivo: ainda não conferidas OK
+  /* --- MEU MÊS: resumo pessoal do estagiário/advogado (desempenho do mês corrente) --- */
+  const elMM = $('meuMes');
+  if(elMM){
+    if(usuario && veSoProprios()){
+      const hj = new Date();
+      const mesAtual = hj.getFullYear()+'-'+String(hj.getMonth()+1).padStart(2,'0');
+      let mmF=0, mmNT=0, mmNF=0;
+      registros.forEach(r=>{
+        if(normaliza(r.RESPONSAVEL)!==normaliza(usuario.nome)) return;
+        if(dataISO(r.DATA).slice(0,7)!==mesAtual) return;
+        const st = normaliza(r.STATUS);
+        if(resFechou(st)) mmF++;
+        else if(!st) mmNT++;
+        else if(RES_NAO_FECHOU.includes(st)) mmNF++;
+      });
+      $('mmFechou').textContent='FECHOU: '+mmF;
+      $('mmNaoTrab').textContent='NÃO TRABALHADO: '+mmNT;
+      $('mmNaoFechou').textContent='NÃO FECHOU: '+mmNF;
+      elMM.style.display='inline-flex';
+    } else elMM.style.display='none';
+  }
 
   /* --- aba 3: iniciais para elaborar --- */
   const INI_CORES = {'FEITO':'verde','PENDENTE':'vermelho'};
@@ -1896,31 +1835,14 @@ function montarDlConferentes(){
   const dl=$('dlConferentes'); if(!dl)return;
   dl.innerHTML = listaConferentes().map(n=>`<option value="${esc(n)}">`).join('');
 }
-async function salvarConfResp(id){
-  const r = registros.find(x=>x.ID===id);
-  const quem = $('confResp_'+id).value.trim().toUpperCase();
-  if(r && normaliza(r.CONF_RESP||'')===normaliza(quem))return;
-  const resp = await postHist({ID:id,CONF_RESP:quem},quem?('Conferência: conferido por '+quem):'Conferência: nome de quem conferiu removido','CONFERÊNCIA');
-  if(resp.ok){if(r)r.CONF_RESP=quem;montarDlConferentes();renderResumo();toast(quem?('Conferido por: '+quem):'Nome removido')}
-  else toast('Erro: '+resp.erro);
-}
-function novoConferente(id){
-  const nome = prompt('Nome de quem conferiu (entra na lista de nomes):');
-  if(!nome || !nome.trim())return;
-  const n = nome.trim().toUpperCase();
-  if(!conferentesExtras.includes(n))conferentesExtras.push(n);
-  montarDlConferentes();
-  if(id && $('confResp_'+id)){$('confResp_'+id).value=n;salvarConfResp(id)}
-}
 async function dividirConferencias(){
   if(!usuario || !usuario.master) return;
-  const dupla = (conferentesServidor.length?conferentesServidor:['as conferentes']).join(' e ');
-  if(!confirm('Dividir entre '+dupla+' todas as pendências sem nome (conferências aguardando e iniciais a elaborar) e unificar as grafias dos nomes?'))return;
+  if(!confirm('Distribuir as INICIAIS pendentes que estão sem responsável (regras de Configurações: encaminhamentos diretos + rodízio) e unificar as grafias dos nomes?'))return;
   loading(true,'Dividindo pendências…');
   const r = await apiPost({action:'organizarConferentes',senhaMaster:usuario.senha});
   loading(false);
   if(r.ok){
-    toast('Conferências atribuídas: '+r.confAtribuidas+' · Iniciais atribuídas: '+r.iniAtribuidas+' · Grafias unificadas: '+r.unificados);
+    toast('Iniciais atribuídas: '+r.iniAtribuidas+' · Grafias unificadas: '+r.unificados);
     await carregar();
   }else toast('Erro: '+(r.erro||'não foi possível dividir'));
 }
@@ -2507,11 +2429,6 @@ function limparFiltrosAp(){
   apVerAguardando = false;
   renderizar();
 }
-function limparFiltrosConf(){
-  document.querySelectorAll('[data-fc]').forEach(el=>el.value='');
-  $('fConfStatus').value='';
-  renderizar();
-}
 function limparFiltrosIni(){
   document.querySelectorAll('[data-fi]').forEach(el=>el.value='');
   $('fIniData').value='';$('fIniStatus').value='';
@@ -2535,59 +2452,6 @@ async function voltarParaAbertura(id){
   loading(false);
   if(resp.ok){const r=registros.find(x=>x.ID===id);if(r)r.DOC_SITUACAO='';renderizar();trocarSubAba('pendentes');toast('Pasta devolvida para Em aberto')}
   else toast('Erro: '+resp.erro);
-}
-
-async function confMudaStatus(id,sel){
-  const valor = sel.value;
-  if(normaliza(valor)==='PENDENCIA DE DOCUMENTOS'){
-    // só mostra o campo de observação; o salvamento acontece no botão Confirmar
-    $('confPend_'+id).style.display='flex';
-    $('confObs_'+id).focus();
-    return;
-  }
-  $('confPend_'+id).style.display='none';
-  const r = registros.find(x=>x.ID===id);
-  const campoQuem = $('confResp_'+id);
-  const quem = ((campoQuem?campoQuem.value:'')||String((r&&r.CONF_RESP)||'')).trim().toUpperCase();
-  if(valor && !quem){
-    toast('Informe quem conferiu no campo "Conferido por"');
-    sel.value = r?(r.CONF_STATUS||''):'';
-    if(campoQuem)campoQuem.focus();
-    return;
-  }
-  loading(true,'Salvando…');
-  const resp = await postHist({ID:id,CONF_STATUS:valor,CONF_OBS:'',CONF_RESP:quem},valor?('Conferência: '+valor+(quem?(' — conferido por '+quem):'')):'Conferência limpa','CONFERÊNCIA');
-  loading(false);
-  if(resp.ok){
-    if(r){
-      r.CONF_STATUS=valor;r.CONF_OBS='';r.CONF_RESP=quem;
-      if(valor && !String(r.CONF_DATA||'').trim())r.CONF_DATA=fmtData(new Date());
-      // quem conferiu já entra como responsável pela inicial (se ainda não houver um)
-      if(normaliza(valor)==='DOCUMENTACAO OK' && quem && !String(r.INICIAL_RESP||'').trim())r.INICIAL_RESP=quem;
-    }
-    renderizar();toast(valor?('Conferência: '+valor):'Conferência limpa');
-  }
-  else toast('Erro: '+resp.erro);
-}
-
-async function confirmarPendencia(id){
-  const r = registros.find(x=>x.ID===id);
-  const obs = $('confObs_'+id).value.trim();
-  if(!obs){toast('Descreva a pendência de documentos');return}
-  if(!confirm('Confirmar a pendência? A pasta voltará para a aba Atendimentos com o status PENDENTE DE DOCUMENTO.'))return;
-  const campoQuem = $('confResp_'+id);
-  const quem = ((campoQuem?campoQuem.value:'')||String((r&&r.CONF_RESP)||'')).trim().toUpperCase();
-  loading(true,'Salvando…');
-  const resp = await postHist({ID:id,CONF_STATUS:'PENDÊNCIA DE DOCUMENTOS',CONF_OBS:obs,STATUS:'FECHOU (PENDENTE DE DOCS)',CONF_RESP:quem},'Conferência: PENDÊNCIA DE DOCUMENTOS — devolvido para Atendimentos','CONFERÊNCIA');
-  loading(false);
-  if(resp.ok){
-    if(r){
-      r.CONF_STATUS='PENDÊNCIA DE DOCUMENTOS';r.CONF_OBS=obs;r.STATUS='FECHOU (PENDENTE DE DOCS)';r.CONF_RESP=quem;
-      if(!String(r.CONF_DATA||'').trim())r.CONF_DATA=fmtData(new Date());
-    }
-    renderizar();
-    toast('Pasta devolvida para Atendimentos como PENDENTE DE DOCUMENTO');
-  }else toast('Erro: '+resp.erro);
 }
 
 async function salvarInicialStatus(id,valor){
@@ -2735,8 +2599,9 @@ function renderBaseLeads(){
 let visAtendIds = new Set(); // IDs atualmente na tela da aba Atendimentos
 let movsCache = [];
 async function abrirMovAbertura(filtroAba){
+  if(!usuario || !usuario.master){toast('O histórico de movimentos é exclusivo do master');return}
   loading(true,'Carregando histórico…');
-  const r = await apiPost({action:'listarMovAbertura'});
+  const r = await apiPost({action:'listarMovAbertura',senhaMaster:usuario.senha});
   loading(false);
   if(!r.ok){toast(String(r.erro||'').includes('Ação inválida')?'Atualize o Code.gs (Nova versão) para usar o histórico':'Erro: '+r.erro);return}
   movsCache = r.movimentos||[];
@@ -2806,7 +2671,7 @@ async function restaurarBackup(input){
 async function desfazerMov(idMov){
   if(!confirm('Desfazer este movimento? A pasta voltará ao estado anterior a ele.'))return;
   loading(true,'Desfazendo…');
-  const r = await apiPost({action:'desfazerMovAbertura',idMov});
+  const r = await apiPost({action:'desfazerMovAbertura',idMov,senhaMaster:usuario.senha});
   loading(false);
   if(r.ok){
     toast('Movimento desfeito — '+(r.cliente?r.cliente+' voltou':'a pasta voltou')+' ao estado anterior');
@@ -2859,10 +2724,10 @@ async function apSalvar(id){
   loading(false);
   if(resp.ok){
     Object.assign(r,reg);
-    if(resp.confResp){r.CONF_RESP=resp.confResp} // conferente atribuída pelo rodízio automático
+    if(resp.confResp){r.INICIAL_RESP=resp.confResp} // responsável pela inicial atribuída automaticamente
     renderizar();
     if(normaliza(reg.DOC_SITUACAO)==='DOCUMENTACAO OK' && reg.PASTA_CPJ){
-      toast('Pasta '+reg.PASTA_CPJ+' aberta — conferência distribuída para '+(resp.confResp||'a conferente da vez'));
+      toast('Pasta '+reg.PASTA_CPJ+' aberta — iniciais com '+(resp.confResp||'a advogada da vez'));
     }else if(faltandoDoc){
       toast('Devolvido para Atendimentos como FECHOU (PENDENTE DE DOCS)');
     }else{
@@ -4268,7 +4133,7 @@ function aplicarLogin(semCarregar){
   $('loginSenha').value='';
   aplicarPermissoesUI();
   $('agAdvSel').innerHTML='';
-  const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
+  const primeira = ['lead','atendimentos','abertura','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
   trocarAba(primeira);
   if(!semCarregar)carregar();
 }
@@ -4286,7 +4151,7 @@ async function sessaoCompleta(silencioso){
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
       if(!ativa || !podeAba(ativa.dataset.aba)){
-        const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
+        const primeira = ['lead','atendimentos','abertura','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
         trocarAba(primeira);
       }
       aplicarDados(r);
@@ -4321,7 +4186,7 @@ async function revalidarSessao(){
       aplicarPermissoesUI();
       const ativa = document.querySelector('.aba.ativa');
       if(!ativa || !podeAba(ativa.dataset.aba)){
-        const primeira = ['lead','atendimentos','abertura','conferencia','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
+        const primeira = ['lead','atendimentos','abertura','iniciais','ajuizamento','resumo'].find(podeAba) || 'atendimentos';
         trocarAba(primeira);
       }
       renderizar(); renderAgendamentos(); renderLeads();
@@ -4386,7 +4251,6 @@ function renderUsuarios(){
         <label><input type="checkbox" id="uLead_${i}" ${abas.includes('lead')?'checked':''}> Lead</label>
         <label><input type="checkbox" id="uAtend_${i}" ${abas.includes('atendimentos')?'checked':''}> Atendimentos</label>
         <label><input type="checkbox" id="uAbert_${i}" ${abas.includes('abertura')?'checked':''}> Abertura de Pasta</label>
-        <label><input type="checkbox" id="uConf_${i}" ${abas.includes('conferencia')?'checked':''}> Conferência</label>
         <label><input type="checkbox" id="uInic_${i}" ${abas.includes('iniciais')?'checked':''}> Iniciais</label>
         <label><input type="checkbox" id="uAjuiz_${i}" ${abas.includes('ajuizamento')?'checked':''}> Ajuizamento</label>
         <label><input type="checkbox" id="uResumo_${i}" ${abas.includes('resumo')?'checked':''}> Resumo</label>
@@ -4575,11 +4439,6 @@ const renderLeadsDeb = debounce(()=>renderLeads(),180);
     el.addEventListener('input',renderizarDeb);
     el.addEventListener('change',renderizar);
   });
-  document.querySelectorAll('[data-fc]').forEach(el=>{
-    el.addEventListener('input',renderizarDeb);
-    el.addEventListener('change',renderizar);
-  });
-  $('fConfStatus').addEventListener('change',renderizar);
   document.querySelectorAll('[data-fi],[data-fj]').forEach(el=>{
     el.addEventListener('input',renderizarDeb);
     el.addEventListener('change',renderizar);
